@@ -234,10 +234,56 @@ export async function copyNavigationLink(
   const link = generateAmapNavigationLink(departure, destination, deliveries)
   if (!link) return false
 
+  return copyToClipboard(link)
+}
+
+/**
+ * 通用复制到剪贴板函数（支持移动端）
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(link)
-    return true
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+    // Fallback for mobile/insecure context
+    return copyToClipboardFallback(text)
   } catch {
+    // Fallback for mobile browsers
+    return copyToClipboardFallback(text)
+  }
+}
+
+/**
+ * Fallback copy method for mobile browsers
+ */
+function copyToClipboardFallback(text: string): boolean {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  textarea.style.top = '0'
+  textarea.setAttribute('readonly', '')
+  document.body.appendChild(textarea)
+
+  try {
+    // iOS Safari requires this
+    const range = document.createRange()
+    range.selectNodeContents(textarea)
+    const selection = window.getSelection()
+    if (selection) {
+      selection.removeAllRanges()
+      selection.addRange(range)
+    }
+    textarea.select()
+    textarea.setSelectionRange(0, 99999) // For mobile
+
+    const success = document.execCommand('copy')
+    document.body.removeChild(textarea)
+    return success
+  } catch {
+    document.body.removeChild(textarea)
     return false
   }
 }

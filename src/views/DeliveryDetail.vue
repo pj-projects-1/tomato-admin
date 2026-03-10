@@ -262,7 +262,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { useDeliveryStore } from '@/stores/deliveries'
 import { getAmapService, DEFAULT_DEPARTURE, DEFAULT_DEPARTURE_ADDRESS, type Location } from '@/api/amap'
-import { exportDeliveryTask, copyNavigationLink, generateAmapAutoNavLink } from '@/api/export'
+import { exportDeliveryTask, copyNavigationLink, generateAmapAutoNavLink, copyToClipboard } from '@/api/export'
 import type { DeliveryTask, DeliveryTaskStatus, OrderDelivery, DeliveryStatus, OptimizedRoute } from '@/types'
 
 const route = useRoute()
@@ -801,8 +801,12 @@ ${lines.join('\n\n')}
 共 ${sortedDeliveries.value.length} 个配送点${linkSection}`
 
   try {
-    await navigator.clipboard.writeText(text)
-    ElMessage.success('已复制到剪贴板（含导航链接）')
+    const success = await copyToClipboard(text)
+    if (success) {
+      ElMessage.success('已复制到剪贴板（含导航链接）')
+    } else {
+      ElMessage.error('复制失败')
+    }
   } catch {
     ElMessage.error('复制失败')
   }
