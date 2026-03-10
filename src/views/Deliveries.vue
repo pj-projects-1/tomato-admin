@@ -600,11 +600,41 @@ const destinationForm = reactive({
   location: null as Location | null,
 })
 
-const quickLocations = [
-  { name: '吴江区', address: '江苏省苏州市吴江区', location: DEFAULT_DEPARTURE },
-  { name: '苏州市区', address: '江苏省苏州市姑苏区', location: { lng: 120.6199, lat: 31.3205 } },
-  { name: '常熟市区', address: '江苏省苏州市常熟市', location: { lng: 120.7525, lat: 31.6537 } },
-]
+// Recent departure locations (persisted to localStorage)
+const RECENT_LOCATIONS_KEY = 'tomato-admin-recent-locations'
+const MAX_RECENT_LOCATIONS = 5
+
+interface SavedLocation {
+  name: string
+  address: string
+  location: Location
+}
+
+const quickLocations = ref<SavedLocation[]>([])
+
+function loadRecentLocations() {
+  try {
+    const saved = localStorage.getItem(RECENT_LOCATIONS_KEY)
+    if (saved) {
+      quickLocations.value = JSON.parse(saved)
+    }
+  } catch (e) {
+    console.error('Failed to load recent locations:', e)
+  }
+}
+
+function saveRecentLocation(name: string, address: string, location: Location) {
+  // Remove if already exists (by address)
+  const filtered = quickLocations.value.filter(l => l.address !== address)
+  // Add to beginning
+  const updated = [{ name, address, location }, ...filtered].slice(0, MAX_RECENT_LOCATIONS)
+  quickLocations.value = updated
+  try {
+    localStorage.setItem(RECENT_LOCATIONS_KEY, JSON.stringify(updated))
+  } catch (e) {
+    console.error('Failed to save recent locations:', e)
+  }
+}
 
 // 路线规划结果
 const routeResults = ref<{
@@ -658,6 +688,7 @@ const completedTasks = computed(() =>
 )
 
 onMounted(() => {
+  loadRecentLocations()
   deliveryStore.fetchPendingDeliveries()
   deliveryStore.fetchDeliveryTasks()
 })
@@ -718,7 +749,7 @@ function showDepartureDialog() {
   departureDialogVisible.value = true
 }
 
-function selectQuickLocation(loc: typeof quickLocations[0]) {
+function selectQuickLocation(loc: SavedLocation) {
   departureForm.address = loc.address
   departureForm.location = { ...loc.location }
 }
@@ -731,6 +762,9 @@ function saveDeparture() {
   departure.address = departureForm.address
   departure.lng = departureForm.location.lng
   departure.lat = departureForm.location.lat
+  // Save as recent location
+  const shortName = departureForm.address.split(/[省市县区]/)[0] || departureForm.address.slice(0, 10)
+  saveRecentLocation(shortName, departureForm.address, departureForm.location)
   // 如果是环形路线，同步更新结束地
   if (isRoundTrip.value) {
     destination.address = departure.address
@@ -752,7 +786,7 @@ function showDestinationDialog() {
   destinationDialogVisible.value = true
 }
 
-function selectQuickLocationForDestination(loc: typeof quickLocations[0]) {
+function selectQuickLocationForDestination(loc: SavedLocation) {
   destinationForm.address = loc.address
   destinationForm.location = { ...loc.location }
 }

@@ -374,7 +374,9 @@ export function createAmapService(): AmapService | null {
 
   return new AmapService({
     key,
-    securityJsCode: import.meta.env.VITE_AMAP_SECURITY_KEY,
+    // Note: Web服务 API security key is not needed for basic usage
+    // If you need advanced security, add VITE_AMAP_SECURITY_KEY to .env
+    securityJsCode: import.meta.env.VITE_AMAP_SECURITY_KEY || undefined,
   })
 }
 
