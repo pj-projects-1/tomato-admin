@@ -175,33 +175,35 @@
                     {{ formatDate(row.created_at) }}
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="200">
+                <el-table-column label="操作" width="160">
                   <template #default="{ row }">
-                    <el-button
-                      v-if="row.status === 'planning'"
-                      text
-                      type="success"
-                      @click="startTask(row)"
-                    >
-                      开始
-                    </el-button>
-                    <el-button
-                      v-if="row.status === 'in_progress'"
-                      text
-                      type="warning"
-                      @click="cancelTask(row)"
-                    >
-                      撤销
-                    </el-button>
-                    <el-button text type="primary" @click="viewTask(row)">详情</el-button>
-                    <el-button
-                      v-if="row.status !== 'in_progress'"
-                      text
-                      type="danger"
-                      @click="deleteTask(row)"
-                    >
-                      删除
-                    </el-button>
+                    <div class="task-actions">
+                      <el-button
+                        v-if="row.status === 'planning'"
+                        text
+                        type="success"
+                        @click="startTask(row)"
+                      >
+                        开始
+                      </el-button>
+                      <el-button
+                        v-if="row.status === 'in_progress'"
+                        text
+                        type="warning"
+                        @click="cancelTask(row)"
+                      >
+                        撤销
+                      </el-button>
+                      <el-button text type="primary" @click="viewTask(row)">详情</el-button>
+                      <el-button
+                        v-if="row.status !== 'in_progress'"
+                        text
+                        type="danger"
+                        @click="deleteTask(row)"
+                      >
+                        删除
+                      </el-button>
+                    </div>
                   </template>
                 </el-table-column>
               </el-table>
@@ -292,14 +294,16 @@
                 </el-table-column>
                 <el-table-column label="操作" width="120">
                   <template #default="{ row }">
-                    <el-button text type="primary" @click="viewTask(row)">详情</el-button>
-                    <el-button
-                      text
-                      type="danger"
-                      @click="deleteTask(row)"
-                    >
-                      删除
-                    </el-button>
+                    <div class="task-actions">
+                      <el-button text type="primary" @click="viewTask(row)">详情</el-button>
+                      <el-button
+                        text
+                        type="danger"
+                        @click="deleteTask(row)"
+                      >
+                        删除
+                      </el-button>
+                    </div>
                   </template>
                 </el-table-column>
               </el-table>
@@ -1229,6 +1233,19 @@ watch(selectedStrategy, async (newStrategy) => {
   align-items: center;
   gap: 8px;
   font-weight: 500;
+}
+
+/* Task table actions alignment */
+.task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.task-actions .el-button {
+  margin: 0;
+  padding: 4px 8px;
 }
 
 /* Mobile card views - hidden on desktop */
