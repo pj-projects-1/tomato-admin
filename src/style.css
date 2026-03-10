@@ -10,6 +10,10 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Responsive breakpoints */
+  --mobile-breakpoint: 768px;
+  --tablet-breakpoint: 1024px;
 }
 
 * {
@@ -195,5 +199,50 @@ html, body, #app {
 @media (min-width: 768px) and (max-width: 1024px) {
   .page-container {
     padding: 16px;
+  }
+}
+
+/* Touch-friendly targets (mobile and tablet) */
+@media (max-width: 1024px) {
+  /* Ensure tap targets are at least 44x44px (Apple HIG recommendation) */
+  .el-button {
+    min-height: 44px;
+  }
+
+  .el-input__inner,
+  .el-input__wrapper {
+    min-height: 44px;
+  }
+
+  .el-select .el-input__inner,
+  .el-select .el-input__wrapper {
+    min-height: 44px;
+  }
+
+  .el-date-editor .el-input__wrapper {
+    min-height: 44px;
+  }
+
+  .el-checkbox {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .el-radio {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Dialog responsive width */
+  .el-dialog {
+    max-width: 95vw;
+  }
+
+  /* Table wrapper for horizontal scroll */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
