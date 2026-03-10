@@ -1,0 +1,967 @@
+<template>
+  <div class="page-container">
+    <div class="page-header">
+      <h1 class="page-title">订单管理</h1>
+      <div class="header-actions">
+        <el-button @click="handleExport" :disabled="orderStore.orders.length === 0">
+          <el-icon><Download /></el-icon>
+          导出
+        </el-button>
+        <el-button type="primary" @click="showAddDialog">
+          <el-icon><Plus /></el-icon>
+          新增订单
+        </el-button>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <el-select
+        v-model="filters.status"
+        placeholder="订单状态"
+        clearable
+        style="width: 120px"
+        @change="handleFilter"
+      >
+        <el-option label="待确认" value="pending" />
+        <el-option label="已确认" value="confirmed" />
+        <el-option label="配送中" value="delivering" />
+        <el-option label="已完成" value="completed" />
+        <el-option label="已取消" value="cancelled" />
+      </el-select>
+      <el-select
+        v-model="filters.paid"
+        placeholder="付款状态"
+        clearable
+        style="width: 120px"
+        @change="handleFilter"
+      >
+        <el-option label="已付款" :value="true" />
+        <el-option label="未付款" :value="false" />
+      </el-select>
+      <el-button @click="resetFilters">重置</el-button>
+    </div>
+
+    <!-- Order List -->
+    <el-card shadow="never">
+      <!-- Batch Operations Toolbar -->
+      <div v-if="selectedOrders.length > 0" class="batch-toolbar">
+        <span class="batch-info">已选择 {{ selectedOrders.length }} 个订单</span>
+        <el-button type="danger" @click="batchDelete" :loading="batchDeleting">
+          <el-icon><Delete /></el-icon>
+          批量删除/取消
+        </el-button>
+      </div>
+
+      <!-- Desktop: Table view -->
+      <el-table
+        ref="tableRef"
+        :data="orderStore.orders"
+        v-loading="orderStore.loading"
+        style="width: 100%"
+        class="desktop-table"
+        @row-click="viewOrder"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="40" />
+        <el-table-column prop="customer" label="客户" min-width="120">
+          <template #default="{ row }">
+            {{ row.customer?.name || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="total_boxes" label="总箱数" width="80" align="center" />
+        <el-table-column prop="total_amount" label="金额" width="100">
+          <template #default="{ row }">
+            ¥{{ row.total_amount || 0 }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="paid" label="付款" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.paid ? 'success' : 'warning'" size="small">
+              {{ row.paid ? '已付' : '未付' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="getStatusType(row.status)" size="small">
+              {{ getStatusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="deliveries" label="配送地址" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag size="small">{{ row.deliveries?.length || 0 }} 个</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="created_at" label="创建时间" width="110">
+          <template #default="{ row }">
+            {{ formatDate(row.created_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120">
+          <template #default="{ row }">
+            <div class="action-buttons-grid">
+              <div class="action-row">
+                <el-button link type="primary" @click.stop="viewOrder(row)">详情</el-button>
+                <el-button v-if="row.status === 'pending'" link type="success" @click.stop="confirmOrder(row)">确认</el-button>
+              </div>
+              <div class="action-row">
+                <el-button v-if="!row.paid" link type="warning" @click.stop="markPaid(row)">收款</el-button>
+                <el-button v-if="row.status !== 'completed' && row.status !== 'cancelled'" link type="danger" @click.stop="cancelOrder(row)">
+                  {{ row.status === 'pending' ? '删除' : '取消' }}
+                </el-button>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- Mobile: Card view -->
+      <div class="mobile-card-list" v-loading="orderStore.loading">
+        <div
+          v-for="row in orderStore.orders"
+          :key="row.id"
+          class="order-mobile-card"
+          @click="viewOrder(row)"
+        >
+          <div class="card-header-row">
+            <span class="customer-name">{{ row.customer?.name || '-' }}</span>
+            <el-tag :type="getStatusType(row.status)" size="small">
+              {{ getStatusText(row.status) }}
+            </el-tag>
+          </div>
+          <div class="card-info-row">
+            <span class="amount">¥{{ row.total_amount || 0 }}</span>
+            <span>{{ row.total_boxes }}箱</span>
+            <el-tag :type="row.paid ? 'success' : 'warning'" size="small">
+              {{ row.paid ? '已付' : '未付' }}
+            </el-tag>
+          </div>
+          <div class="card-footer">
+            <span class="time">{{ formatDate(row.created_at) }}</span>
+            <span class="delivery-info">{{ row.deliveries?.length || 0 }}个配送点</span>
+          </div>
+          <div class="card-actions" v-if="row.status === 'pending' || !row.paid">
+            <el-button v-if="row.status === 'pending'" size="small" type="success" @click.stop="confirmOrder(row)">确认</el-button>
+            <el-button v-if="!row.paid" size="small" type="warning" @click.stop="markPaid(row)">收款</el-button>
+            <el-button v-if="row.status === 'pending'" size="small" type="danger" @click.stop="cancelOrder(row)">删除</el-button>
+          </div>
+        </div>
+        <el-empty v-if="orderStore.orders.length === 0" description="暂无订单" />
+      </div>
+    </el-card>
+
+    <!-- Add Order Dialog -->
+    <el-dialog
+      v-model="dialogVisible"
+      title="新增订单"
+      width="700px"
+      destroy-on-close
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="80px"
+      >
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="客户" prop="customer_id">
+              <el-select
+                v-model="form.customer_id"
+                placeholder="选择客户"
+                filterable
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="c in customerStore.customers"
+                  :key="c.id"
+                  :label="c.name"
+                  :value="c.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="总箱数" prop="total_boxes">
+              <el-input-number
+                v-model="form.total_boxes"
+                :min="1"
+                :max="999"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="单价">
+              <el-input-number
+                v-model="form.unit_price"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="总价">
+              <el-input
+                :model-value="calculatedTotalAmount"
+                disabled
+                style="width: 100%"
+                class="total-amount-input"
+              >
+                <template #prefix>¥</template>
+              </el-input>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="付款方式">
+              <el-select v-model="form.payment_method" placeholder="选择付款方式">
+                <el-option label="微信" value="wechat" />
+                <el-option label="现金" value="cash" />
+                <el-option label="银行转账" value="bank_transfer" />
+                <el-option label="其他" value="other" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="备注">
+          <el-input v-model="form.note" placeholder="订单备注" />
+        </el-form-item>
+
+        <!-- Delivery Addresses -->
+        <el-divider>
+          <span class="divider-text">配送地址（一单多地址）</span>
+        </el-divider>
+        <div class="delivery-list">
+          <div
+            v-for="(delivery, index) in form.deliveries"
+            :key="index"
+            class="delivery-item"
+          >
+            <div class="delivery-header">
+              <span>配送点 {{ index + 1 }}</span>
+              <el-button
+                v-if="form.deliveries.length > 1"
+                text
+                type="danger"
+                @click="removeDelivery(index)"
+              >
+                删除
+              </el-button>
+            </div>
+            <el-row :gutter="12">
+              <el-col :span="8">
+                <el-form-item label="收货人">
+                  <el-input v-model="delivery.recipient_name" placeholder="收货人姓名" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="电话">
+                  <el-input v-model="delivery.recipient_phone" placeholder="联系电话" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="数量" required>
+                  <el-input-number
+                    v-model="delivery.quantity"
+                    :min="1"
+                    :max="form.total_boxes"
+                    style="width: 100%"
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-form-item label="地址" required>
+              <AddressSelector
+                v-model="delivery.address"
+                v-model:location="delivery.location"
+                :saved-addresses="selectedCustomerAddresses"
+                @update:recipient-name="(name: string) => { delivery.recipient_name = name }"
+                @update:recipient-phone="(phone: string) => { delivery.recipient_phone = phone }"
+                placeholder="输入地址搜索..."
+              />
+            </el-form-item>
+          </div>
+          <div class="delivery-summary">
+            <span>已分配: {{ totalDeliveryBoxes }} 箱</span>
+            <span v-if="remainingBoxes !== 0" :class="remainingBoxes > 0 ? 'remaining' : 'excess'">
+              {{ remainingBoxes > 0 ? `剩余: ${remainingBoxes} 箱待分配` : `超出: ${Math.abs(remainingBoxes)} 箱` }}
+            </span>
+            <span v-else class="complete">分配完成</span>
+          </div>
+          <el-button text type="primary" @click="addDelivery" :disabled="remainingBoxes <= 0">
+            <el-icon><Plus /></el-icon>
+            添加配送地址
+          </el-button>
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">
+          创建订单
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Payment Dialog -->
+    <el-dialog v-model="paymentDialogVisible" title="确认收款" width="400px">
+      <el-form label-width="80px">
+        <el-form-item label="金额">
+          <span style="font-size: 20px; color: #409eff;">
+            ¥{{ selectedOrder?.total_amount || 0 }}
+          </span>
+        </el-form-item>
+        <el-form-item label="付款方式">
+          <el-select v-model="paymentMethod" placeholder="选择付款方式">
+            <el-option label="微信" value="wechat" />
+            <el-option label="现金" value="cash" />
+            <el-option label="银行转账" value="bank_transfer" />
+            <el-option label="其他" value="other" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="paymentDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="confirmPayment">
+          确认收款
+        </el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules, TableInstance } from 'element-plus'
+import dayjs from 'dayjs'
+import { useOrderStore } from '@/stores/orders'
+import { useCustomerStore } from '@/stores/customers'
+import { exportOrders } from '@/api/export'
+import AddressSelector from '@/components/AddressSelector.vue'
+import type { Order, OrderStatus, OrderDelivery } from '@/types'
+
+const router = useRouter()
+const route = useRoute()
+const orderStore = useOrderStore()
+const customerStore = useCustomerStore()
+
+const dialogVisible = ref(false)
+const paymentDialogVisible = ref(false)
+const submitting = ref(false)
+const formRef = ref<FormInstance>()
+const selectedOrder = ref<Order | null>(null)
+const paymentMethod = ref('wechat')
+const tableRef = ref()
+const selectedOrders = ref<Order[]>([])
+const batchDeleting = ref(false)
+
+const filters = reactive({
+  status: '' as OrderStatus | '',
+  paid: undefined as boolean | undefined,
+})
+
+const form = reactive({
+  customer_id: '',
+  total_boxes: 1,
+  unit_price: 40,
+  payment_method: undefined as 'wechat' | 'cash' | 'bank_transfer' | 'other' | undefined,
+  note: '',
+  deliveries: [
+    { recipient_name: '', recipient_phone: '', address: '', quantity: 1, location: undefined as { lng: number; lat: number } | undefined },
+  ] as Partial<OrderDelivery>[],
+})
+
+const rules: FormRules = {
+  customer_id: [{ required: true, message: '请选择客户', trigger: 'change' }],
+  total_boxes: [{ required: true, message: '请输入箱数', trigger: 'blur' }],
+}
+
+const totalDeliveryBoxes = computed(() =>
+  form.deliveries.reduce((sum: number, d) => sum + (d.quantity || 0), 0)
+)
+
+// 计算总金额 = 单价 × 箱数
+const calculatedTotalAmount = computed(() =>
+  (form.unit_price || 0) * (form.total_boxes || 0)
+)
+
+// 计算剩余未分配的箱数
+const remainingBoxes = computed(() =>
+  form.total_boxes - totalDeliveryBoxes.value
+)
+
+// 监听总箱数变化，自动同步配送数量
+watch(() => form.total_boxes, (newTotal) => {
+  if (form.deliveries.length === 1 && form.deliveries[0]) {
+    // 只有一个配送点时，直接同步数量
+    form.deliveries[0].quantity = newTotal
+  } else if (form.deliveries.length > 1) {
+    // 多个配送点时，检查是否超出，如果超出则调整最后一个
+    if (totalDeliveryBoxes.value > newTotal) {
+      // 从后往前调整
+      let excess = totalDeliveryBoxes.value - newTotal
+      for (let i = form.deliveries.length - 1; i >= 0 && excess > 0; i--) {
+        const delivery = form.deliveries[i]
+        if (!delivery) continue
+        const current = delivery.quantity || 0
+        const deduction = Math.min(current - 1, excess)
+        if (current > 1 && deduction > 0) {
+          delivery.quantity = current - deduction
+          excess -= deduction
+        }
+      }
+    }
+  }
+})
+
+// 获取选中客户的地址列表
+const selectedCustomerAddresses = computed(() => {
+  if (!form.customer_id) return []
+  const customer = customerStore.customers.find(c => c.id === form.customer_id)
+  return customer?.addresses || []
+})
+
+onMounted(async () => {
+  await customerStore.fetchCustomers()
+  await handleFilter()
+})
+
+async function handleFilter() {
+  const params: any = {}
+  if (filters.status) params.status = filters.status
+  if (filters.paid !== undefined) params.paid = filters.paid
+
+  // Check for customer filter from query
+  const customerId = route.query.customerId as string
+  if (customerId) {
+    params.customerId = customerId
+  }
+
+  await orderStore.fetchOrders(params)
+}
+
+function resetFilters() {
+  filters.status = ''
+  filters.paid = undefined
+  handleFilter()
+}
+
+function handleExport() {
+  exportOrders(orderStore.orders)
+  ElMessage.success('导出成功')
+}
+
+function formatDate(date: string) {
+  return dayjs(date).format('MM-DD HH:mm')
+}
+
+function getStatusType(status: OrderStatus) {
+  const map: Record<OrderStatus, string> = {
+    pending: 'warning',
+    confirmed: 'primary',
+    delivering: 'success',
+    completed: 'success',
+    cancelled: 'danger',
+  }
+  return map[status] || 'info'
+}
+
+function getStatusText(status: OrderStatus) {
+  const map: Record<OrderStatus, string> = {
+    pending: '待确认',
+    confirmed: '已确认',
+    delivering: '配送中',
+    completed: '已完成',
+    cancelled: '已取消',
+  }
+  return map[status] || status
+}
+
+function showAddDialog() {
+  Object.assign(form, {
+    customer_id: '',
+    total_boxes: 1,
+    unit_price: 40,
+    payment_method: undefined,
+    note: '',
+    deliveries: [
+      { recipient_name: '', recipient_phone: '', address: '', quantity: 1, location: undefined },
+    ],
+  })
+  dialogVisible.value = true
+}
+
+function addDelivery() {
+  const remaining = form.total_boxes - totalDeliveryBoxes.value
+  form.deliveries.push({
+    recipient_name: '',
+    recipient_phone: '',
+    address: '',
+    quantity: Math.max(1, remaining),
+    location: undefined,
+  })
+}
+
+function removeDelivery(index: number) {
+  form.deliveries.splice(index, 1)
+}
+
+async function handleSubmit() {
+  const valid = await formRef.value?.validate()
+  if (!valid) return
+
+  if (remainingBoxes.value !== 0) {
+    if (remainingBoxes.value > 0) {
+      ElMessage.error(`还有 ${remainingBoxes.value} 箱未分配到配送点`)
+    } else {
+      ElMessage.error(`配送总数超出订单箱数 ${Math.abs(remainingBoxes.value)} 箱`)
+    }
+    return
+  }
+
+  submitting.value = true
+  try {
+    const orderData = {
+      customer_id: form.customer_id,
+      total_boxes: form.total_boxes,
+      total_amount: calculatedTotalAmount.value,
+      payment_method: form.payment_method,
+      note: form.note,
+    }
+    const result = await orderStore.createOrder(orderData, form.deliveries)
+    if (result.success) {
+      ElMessage.success('订单创建成功')
+      dialogVisible.value = false
+    } else {
+      // Business logic error from store (e.g., validation)
+      ElMessage.error(result.error || '创建失败')
+    }
+  } catch (error) {
+    // Unexpected error - global handler will deal with it
+    // Still show brief message to user
+    ElMessage.error('创建失败，请重试')
+  } finally {
+    submitting.value = false
+  }
+}
+
+function viewOrder(row: Order) {
+  router.push(`/orders/${row.id}`)
+}
+
+async function confirmOrder(order: Order) {
+  try {
+    await ElMessageBox.confirm(
+      '确认订单后将自动扣减库存，确定继续？',
+      '确认订单',
+      { type: 'warning' }
+    )
+    const result = await orderStore.updateOrderStatus(order.id, 'confirmed')
+    if (result.success) {
+      ElMessage.success('订单已确认')
+    } else {
+      ElMessage.error(result.error || '操作失败')
+    }
+  } catch (e: any) {
+    if (e === 'cancel' || e === 'close') return
+    console.error('Confirm order error:', e)
+    ElMessage.error(e.message || '操作失败')
+  }
+}
+
+function markPaid(order: Order) {
+  selectedOrder.value = order
+  paymentMethod.value = 'wechat'
+  paymentDialogVisible.value = true
+}
+
+async function confirmPayment() {
+  if (!selectedOrder.value) return
+  submitting.value = true
+  try {
+    const result = await orderStore.markAsPaid(selectedOrder.value.id, paymentMethod.value)
+    if (result.success) {
+      ElMessage.success('已确认收款')
+      paymentDialogVisible.value = false
+    } else {
+      ElMessage.error(result.error || '操作失败')
+    }
+  } catch (error) {
+    ElMessage.error('收款失败，请重试')
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function cancelOrder(order: Order) {
+  try {
+    // pending 状态直接删除
+    if (order.status === 'pending') {
+      await ElMessageBox.confirm(
+        '确定要删除此订单吗？删除后无法恢复。',
+        '删除订单',
+        { type: 'warning' }
+      )
+      const result = await orderStore.deleteOrder(order.id)
+      if (result.success) {
+        ElMessage.success('订单已删除')
+      } else {
+        ElMessage.error(result.error || '删除失败')
+      }
+      return
+    }
+
+    // 已确认或配送中的订单，取消并回补库存
+    const confirmMsg = order.status === 'confirmed'
+      ? '订单已确认出库，取消后将自动回补库存，订单状态将恢复为"待确认"，确定继续？'
+      : order.status === 'delivering'
+        ? '订单正在配送中，取消后将自动回补库存，订单状态将恢复为"待确认"，确定继续？'
+        : '确定要取消此订单吗？'
+
+    await ElMessageBox.confirm(confirmMsg, '取消订单', { type: 'warning' })
+    const result = await orderStore.cancelOrder(order.id)
+    if (result.success) {
+      if (result.stockReturned) {
+        ElMessage.success('订单已取消，库存已回补，可重新确认')
+      } else {
+        ElMessage.success('订单已取消')
+      }
+    } else {
+      ElMessage.error(result.error || '操作失败')
+    }
+  } catch (e: any) {
+    if (e === 'cancel' || e === 'close') return
+    console.error('Cancel order error:', e)
+    ElMessage.error(e.message || '操作失败')
+  }
+}
+
+function handleSelectionChange(selection: Order[]) {
+  selectedOrders.value = selection
+}
+
+async function batchDelete() {
+  if (selectedOrders.value.length === 0) return
+
+  const pendingOrders = selectedOrders.value.filter(o => o.status === 'pending')
+  const confirmedOrders = selectedOrders.value.filter(o => o.status === 'confirmed' || o.status === 'delivering')
+
+  let confirmText = `确定要处理选中的 ${selectedOrders.value.length} 个订单吗？\n`
+  if (pendingOrders.length > 0) {
+    confirmText += `- ${pendingOrders.length} 个待确认订单将被删除\n`
+  }
+  if (confirmedOrders.length > 0) {
+    confirmText += `- ${confirmedOrders.length} 个已确认/配送中订单将被取消，库存自动回补`
+  }
+
+  try {
+    await ElMessageBox.confirm(confirmText, '批量处理订单', { type: 'warning' })
+
+    batchDeleting.value = true
+    let deleteCount = 0
+    let cancelCount = 0
+    let failCount = 0
+
+    for (const order of selectedOrders.value) {
+      if (order.status === 'pending') {
+        // 删除待确认订单
+        const result = await orderStore.deleteOrder(order.id)
+        if (result.success) {
+          deleteCount++
+        } else {
+          failCount++
+        }
+      } else if (order.status === 'confirmed' || order.status === 'delivering') {
+        // 取消已确认订单，回补库存
+        const result = await orderStore.cancelOrder(order.id)
+        if (result.success) {
+          cancelCount++
+        } else {
+          failCount++
+        }
+      }
+    }
+
+    if (deleteCount > 0) {
+      ElMessage.success(`已删除 ${deleteCount} 个订单`)
+    }
+    if (cancelCount > 0) {
+      ElMessage.success(`已取消 ${cancelCount} 个订单，库存已回补`)
+    }
+    if (failCount > 0) {
+      ElMessage.warning(`${failCount} 个订单处理失败`)
+    }
+
+    // Clear selection
+    selectedOrders.value = []
+    tableRef.value?.clearSelection()
+  } catch (e: any) {
+    if (e === 'cancel' || e === 'close') return
+    console.error('Batch delete error:', e)
+    ElMessage.error(e.message || '操作失败')
+  } finally {
+    batchDeleting.value = false
+  }
+}
+</script>
+
+<style scoped>
+.delivery-list {
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+/* Delivery summary status */
+.delivery-summary {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.delivery-summary .remaining {
+  color: #e6a23c;
+}
+
+.delivery-summary .excess {
+  color: #f56c6c;
+  font-weight: 500;
+}
+
+.delivery-summary .complete {
+  color: #67c23a;
+  font-weight: 500;
+}
+
+/* Total amount input - center the value */
+.total-amount-input :deep(.el-input__wrapper) {
+  text-align: center;
+}
+
+.total-amount-input :deep(.el-input__inner) {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Divider text - no wrap */
+.divider-text {
+  white-space: nowrap;
+}
+
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: #f0f9ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 4px;
+}
+
+.batch-info {
+  font-weight: 500;
+  color: #409eff;
+}
+
+.delivery-item {
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fafafa;
+  border-radius: 4px;
+}
+
+.delivery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.el-table {
+  cursor: pointer;
+}
+
+.action-buttons-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.action-row {
+  display: flex;
+  gap: 12px;
+}
+
+/* Mobile card list - hidden on desktop */
+.mobile-card-list {
+  display: none;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 767px) {
+  /* Hide desktop table, show mobile cards */
+  .desktop-table {
+    display: none !important;
+  }
+
+  .mobile-card-list {
+    display: block;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filter-bar .el-select {
+    width: 100% !important;
+  }
+
+  .batch-toolbar {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+  /* Mobile card styles */
+  .order-mobile-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: #fff;
+    border: 1px solid #e4e7ed;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .order-mobile-card:active {
+    background: #f5f7fa;
+  }
+
+  .order-mobile-card .card-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .order-mobile-card .customer-name {
+    font-weight: 500;
+    font-size: 15px;
+  }
+
+  .order-mobile-card .card-info-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .order-mobile-card .amount {
+    font-size: 16px;
+    font-weight: 600;
+    color: #409eff;
+  }
+
+  .order-mobile-card .card-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #909399;
+  }
+
+  .order-mobile-card .card-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #ebeef5;
+  }
+
+  .delivery-item {
+    padding: 8px;
+  }
+
+  .delivery-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  :deep(.el-card__body) {
+    padding: 8px;
+  }
+
+  /* Dialog responsive */
+  :deep(.el-dialog) {
+    width: 95% !important;
+    margin: 5vh auto !important;
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 16px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  /* Only target form items inside dialog */
+  :deep(.el-dialog .el-form-item__label) {
+    float: none;
+    text-align: left;
+    padding-bottom: 4px;
+    width: 80px !important;
+  }
+
+  :deep(.el-dialog .el-form-item__content) {
+    margin-left: 0 !important;
+  }
+
+  /* Make dialog form columns stack vertically */
+  :deep(.el-dialog .el-col-12),
+  :deep(.el-dialog .el-col-8) {
+    max-width: 100%;
+    flex: 0 0 100%;
+  }
+
+  :deep(.el-dialog .el-row) {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .delivery-item {
+    padding: 12px 8px;
+  }
+
+  .delivery-list {
+    padding: 12px 8px;
+  }
+
+  .delivery-header {
+    margin-bottom: 8px;
+  }
+
+  /* Make dialog inputs full width */
+  :deep(.el-dialog .el-input),
+  :deep(.el-dialog .el-input-number),
+  :deep(.el-dialog .el-select) {
+    width: 100% !important;
+  }
+}
+</style>
