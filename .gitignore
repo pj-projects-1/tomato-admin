@@ -35,3 +35,4 @@ playwright/.cache
 backups/
 *.dump
 *.sql.bak
+.env
