@@ -106,8 +106,8 @@ if ('serviceWorker' in navigator) {
           })
         }
       })
-    } catch (error) {
-      console.log('Service Worker registration failed:', error)
+    } catch {
+      // Service Worker registration failed - app still works without SW
     }
   })
 

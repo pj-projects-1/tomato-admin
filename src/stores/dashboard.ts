@@ -72,42 +72,47 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   // 获取销售统计
   async function fetchSalesStats() {
-    const { today, weekStart, monthStart } = getDateRanges()
+    try {
+      const { today, weekStart, monthStart } = getDateRanges()
 
-    // 今日销售
-    const { data: todayOrders } = await supabase
-      .from('orders')
-      .select('total_amount, paid')
-      .gte('created_at', today.toISOString())
-      .neq('status', 'cancelled')
+      // 今日销售
+      const { data: todayOrders } = await supabase
+        .from('orders')
+        .select('total_amount, paid')
+        .gte('created_at', today.toISOString())
+        .neq('status', 'cancelled')
 
-    // 本周销售
-    const { data: weekOrders } = await supabase
-      .from('orders')
-      .select('total_amount, paid')
-      .gte('created_at', weekStart.toISOString())
-      .neq('status', 'cancelled')
+      // 本周销售
+      const { data: weekOrders } = await supabase
+        .from('orders')
+        .select('total_amount, paid')
+        .gte('created_at', weekStart.toISOString())
+        .neq('status', 'cancelled')
 
-    // 本月销售
-    const { data: monthOrders } = await supabase
-      .from('orders')
-      .select('total_amount, paid')
-      .gte('created_at', monthStart.toISOString())
-      .neq('status', 'cancelled')
+      // 本月销售
+      const { data: monthOrders } = await supabase
+        .from('orders')
+        .select('total_amount, paid')
+        .gte('created_at', monthStart.toISOString())
+        .neq('status', 'cancelled')
 
-    const calcStats = (orders: any[] | null): SalesStats => {
-      if (!orders) return { totalAmount: 0, paidAmount: 0, unpaidAmount: 0 }
-      return orders.reduce((acc, o) => ({
-        totalAmount: acc.totalAmount + (o.total_amount || 0),
-        paidAmount: acc.paidAmount + (o.paid ? (o.total_amount || 0) : 0),
-        unpaidAmount: acc.unpaidAmount + (!o.paid ? (o.total_amount || 0) : 0),
-      }), { totalAmount: 0, paidAmount: 0, unpaidAmount: 0 })
-    }
+      const calcStats = (orders: any[] | null): SalesStats => {
+        if (!orders) return { totalAmount: 0, paidAmount: 0, unpaidAmount: 0 }
+        return orders.reduce((acc, o) => ({
+          totalAmount: acc.totalAmount + (o.total_amount || 0),
+          paidAmount: acc.paidAmount + (o.paid ? (o.total_amount || 0) : 0),
+          unpaidAmount: acc.unpaidAmount + (!o.paid ? (o.total_amount || 0) : 0),
+        }), { totalAmount: 0, paidAmount: 0, unpaidAmount: 0 })
+      }
 
-    periodStats.value = {
-      today: calcStats(todayOrders),
-      thisWeek: calcStats(weekOrders),
-      thisMonth: calcStats(monthOrders),
+      periodStats.value = {
+        today: calcStats(todayOrders),
+        thisWeek: calcStats(weekOrders),
+        thisMonth: calcStats(monthOrders),
+      }
+    } catch (error) {
+      console.error('Fetch sales stats error:', error)
+      // Keep existing values on error
     }
   }
 
@@ -142,21 +147,26 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   // 获取待处理事项
   async function fetchPendingItems() {
-    // 待配送数量
-    const { count: deliveryCount } = await supabase
-      .from('order_deliveries')
-      .select('*', { count: 'exact', head: true })
-      .in('status', ['pending', 'assigned'])
+    try {
+      // 待配送数量
+      const { count: deliveryCount } = await supabase
+        .from('order_deliveries')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['pending', 'assigned'])
 
-    // 未付款订单数
-    const { count: unpaidCount } = await supabase
-      .from('orders')
-      .select('*', { count: 'exact', head: true })
-      .eq('paid', false)
-      .neq('status', 'cancelled')
+      // 未付款订单数
+      const { count: unpaidCount } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('paid', false)
+        .neq('status', 'cancelled')
 
-    pendingDeliveries.value = deliveryCount || 0
-    unpaidOrders.value = unpaidCount || 0
+      pendingDeliveries.value = deliveryCount || 0
+      unpaidOrders.value = unpaidCount || 0
+    } catch (error) {
+      console.error('Fetch pending items error:', error)
+      // Keep existing values on error
+    }
   }
 
   // 获取近期订单

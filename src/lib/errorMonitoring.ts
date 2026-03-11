@@ -58,7 +58,6 @@ export function initErrorMonitoring(app: App, router: Router) {
         ],
       })
 
-      console.log('[ErrorMonitoring] Sentry initialized')
     }).catch((err) => {
       console.warn('[ErrorMonitoring] Failed to load Sentry:', err)
     })
@@ -81,7 +80,7 @@ export function initErrorMonitoring(app: App, router: Router) {
       script.src = 'https://js.fundebug.cn/fundebug.2.8.8.min.js'
       script.async = true
       script.onload = () => {
-        console.log('[ErrorMonitoring] Fundebug initialized')
+        // Fundebug loaded successfully
       }
       script.onerror = () => {
         console.warn('[ErrorMonitoring] Failed to load Fundebug script')
@@ -90,11 +89,6 @@ export function initErrorMonitoring(app: App, router: Router) {
     } catch (err) {
       console.warn('[ErrorMonitoring] Failed to initialize Fundebug:', err)
     }
-  }
-
-  // Development mode: log errors to console with context
-  if (!isProduction) {
-    console.log('[ErrorMonitoring] Running in development mode - errors logged to console only')
   }
 }
 

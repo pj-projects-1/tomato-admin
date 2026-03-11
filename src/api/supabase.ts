@@ -274,11 +274,8 @@ export const getCurrentStock = async () => {
 }
 
 // Set up auth state listener for proactive session management
-supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'TOKEN_REFRESHED') {
-    console.log('Token refreshed successfully')
-  } else if (event === 'SIGNED_OUT') {
-    console.log('User signed out')
+supabase.auth.onAuthStateChange((event, _session) => {
+  if (event === 'SIGNED_OUT') {
     localStorage.clear()
   }
 })
