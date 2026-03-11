@@ -616,11 +616,40 @@ interface SavedLocation {
 
 const quickLocations = ref<SavedLocation[]>([])
 
+function isValidLocation(loc: unknown): loc is Location {
+  return (
+    typeof loc === 'object' &&
+    loc !== null &&
+    typeof (loc as Location).lng === 'number' &&
+    typeof (loc as Location).lat === 'number' &&
+    !isNaN((loc as Location).lng) &&
+    !isNaN((loc as Location).lat)
+  )
+}
+
+function isValidSavedLocation(item: unknown): item is SavedLocation {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    typeof (item as SavedLocation).name === 'string' &&
+    typeof (item as SavedLocation).address === 'string' &&
+    isValidLocation((item as SavedLocation).location)
+  )
+}
+
 function loadRecentLocations() {
   try {
     const saved = localStorage.getItem(RECENT_LOCATIONS_KEY)
     if (saved) {
-      quickLocations.value = JSON.parse(saved)
+      const parsed: unknown = JSON.parse(saved)
+      // Validate the parsed data is an array of valid SavedLocation objects
+      if (Array.isArray(parsed) && parsed.every(isValidSavedLocation)) {
+        quickLocations.value = parsed
+      } else {
+        // Clear invalid data from localStorage
+        localStorage.removeItem(RECENT_LOCATIONS_KEY)
+        console.warn('Invalid recent locations data cleared from localStorage')
+      }
     }
   } catch (e) {
     console.error('Failed to load recent locations:', e)
@@ -1072,10 +1101,14 @@ function initRouteMap() {
   const script = document.createElement('script')
   script.src = `https://webapi.amap.com/maps?v=2.0&key=${amapJsKey.value}`
   script.onload = () => {
+    script.onload = null // Clean up to prevent memory leak
+    script.onerror = null
     script.setAttribute('data-loaded', 'true')
     createRouteMap()
   }
   script.onerror = () => {
+    script.onload = null // Clean up to prevent memory leak
+    script.onerror = null
     console.error('Map script load failed')
   }
 

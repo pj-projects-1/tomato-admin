@@ -138,12 +138,14 @@ export function generateAmapNavigationLink(
 
   // 构建参数
   const params = new URLSearchParams()
-  params.set('from', `${departure.lng},${departure.lat},${encodeURIComponent(departure.address || '出发地')}`)
-  params.set('to', `${destination.lng},${destination.lat},${encodeURIComponent(destination.address || '目的地')}`)
+  // Note: URLSearchParams.set() already handles encoding, so we don't use encodeURIComponent here
+  params.set('from', `${departure.lng},${departure.lat},${departure.address || '出发地'}`)
+  params.set('to', `${destination.lng},${destination.lat},${destination.address || '目的地'}`)
 
   // 添加途经点（最多支持16个）
+  // Note: URLSearchParams handles encoding, no need for encodeURIComponent
   const viaPoints = validDeliveries.slice(0, 16).map(d =>
-    `${d.location.lng},${d.location.lat},${encodeURIComponent(d.address)}`
+    `${d.location.lng},${d.location.lat},${d.address}`
   )
   if (viaPoints.length > 0) {
     params.set('via', viaPoints.join(';'))
@@ -174,8 +176,9 @@ export function generateSegmentedNavigationLinks(
 
   const makeLink = (from: { lng: number; lat: number; address: string }, to: { lng: number; lat: number; address: string }) => {
     const params = new URLSearchParams()
-    params.set('from', `${from.lng},${from.lat},${encodeURIComponent(from.address)}`)
-    params.set('to', `${to.lng},${to.lat},${encodeURIComponent(to.address)}`)
+    // Note: URLSearchParams handles encoding, no need for encodeURIComponent
+    params.set('from', `${from.lng},${from.lat},${from.address}`)
+    params.set('to', `${to.lng},${to.lat},${to.address}`)
     params.set('mode', 'car')
     params.set('policy', '1')
     params.set('coordinate', 'gaode')
@@ -249,7 +252,9 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     }
     // Fallback for mobile/insecure context
     return copyToClipboardFallback(text)
-  } catch {
+  } catch (error) {
+    // Log error for debugging clipboard permission issues
+    console.warn('Clipboard API failed, using fallback:', error)
     // Fallback for mobile browsers
     return copyToClipboardFallback(text)
   }
@@ -282,7 +287,8 @@ function copyToClipboardFallback(text: string): boolean {
     const success = document.execCommand('copy')
     document.body.removeChild(textarea)
     return success
-  } catch {
+  } catch (error) {
+    console.error('Clipboard fallback failed:', error)
     document.body.removeChild(textarea)
     return false
   }

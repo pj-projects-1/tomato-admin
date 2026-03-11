@@ -92,7 +92,7 @@ if ('serviceWorker' in navigator) {
       const registration = await navigator.serviceWorker.register('/sw.js')
 
       // Check for updates on page load (helps mobile reliability)
-      registration.update()
+      await registration.update()
 
       // Handle updates - force reload when new version available
       registration.addEventListener('updatefound', () => {
