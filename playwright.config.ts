@@ -14,6 +14,12 @@ export default defineConfig({
     video: 'off',
   },
   projects: [
+    // Setup project - runs first to authenticate
+    {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+    },
+    // Unauthenticated desktop tests
     {
       name: 'chromium',
       // Use system Chrome locally (faster), Playwright Chromium in CI
@@ -21,7 +27,9 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         ...(process.env.CI ? {} : { channel: 'chrome' }),
       },
+      dependencies: ['setup'],
     },
+    // Unauthenticated mobile tests
     {
       name: 'mobile-chrome',
       // Mobile responsiveness tests
@@ -29,6 +37,29 @@ export default defineConfig({
         ...devices['Pixel 5'],
         ...(process.env.CI ? {} : { channel: 'chrome' }),
       },
+      dependencies: ['setup'],
+    },
+    // Authenticated desktop tests
+    {
+      name: 'authenticated-chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(process.env.CI ? {} : { channel: 'chrome' }),
+        storageState: 'tests/.auth/user.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /.*\.authenticated\.spec\.ts/,
+    },
+    // Authenticated mobile tests
+    {
+      name: 'authenticated-mobile',
+      use: {
+        ...devices['Pixel 5'],
+        ...(process.env.CI ? {} : { channel: 'chrome' }),
+        storageState: 'tests/.auth/user.json',
+      },
+      dependencies: ['setup'],
+      testMatch: /.*\.authenticated\.spec\.ts/,
     },
   ],
   webServer: {

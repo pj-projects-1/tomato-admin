@@ -30,6 +30,7 @@ coverage
 test-results
 playwright-report
 playwright/.cache
+tests/.auth/
 
 # Backups (never commit database backups)
 backups/
