@@ -118,7 +118,7 @@ export function exportDeliveryTask(task: any, deliveries: any[]) {
 
 /**
  * 生成高德地图导航链接
- * 使用 uri.amap.com 格式，更可靠
+ * 使用 uri.amap.com 格式，支持途经点
  *
  * @param departure 出发地
  * @param destination 目的地（结束地）
@@ -133,13 +133,22 @@ export function generateAmapNavigationLink(
   const validDeliveries = deliveries.filter(d => d.location?.lng && d.location?.lat)
   if (validDeliveries.length === 0) return null
 
-  // 使用 uri.amap.com 格式（官方 URI API，最可靠）
+  // 使用 uri.amap.com/navigation 格式，支持途经点
   const baseUrl = 'https://uri.amap.com/navigation'
 
   // 构建参数
   const params = new URLSearchParams()
   params.set('from', `${departure.lng},${departure.lat},${encodeURIComponent(departure.address || '出发地')}`)
   params.set('to', `${destination.lng},${destination.lat},${encodeURIComponent(destination.address || '目的地')}`)
+
+  // 添加途经点（最多支持16个）
+  const viaPoints = validDeliveries.slice(0, 16).map(d =>
+    `${d.location.lng},${d.location.lat},${encodeURIComponent(d.address)}`
+  )
+  if (viaPoints.length > 0) {
+    params.set('via', viaPoints.join(';'))
+  }
+
   params.set('mode', 'car')
   params.set('policy', '1') // 推荐路线
   params.set('coordinate', 'gaode')
@@ -163,40 +172,40 @@ export function generateSegmentedNavigationLinks(
   const links: string[] = []
   const baseUrl = 'https://uri.amap.com/navigation'
 
+  const makeLink = (from: { lng: number; lat: number; address: string }, to: { lng: number; lat: number; address: string }) => {
+    const params = new URLSearchParams()
+    params.set('from', `${from.lng},${from.lat},${encodeURIComponent(from.address)}`)
+    params.set('to', `${to.lng},${to.lat},${encodeURIComponent(to.address)}`)
+    params.set('mode', 'car')
+    params.set('policy', '1')
+    params.set('coordinate', 'gaode')
+    params.set('callnative', '1')
+    return `${baseUrl}?${params.toString()}`
+  }
+
   // 起点 → 第一个配送点
-  const firstParams = new URLSearchParams()
-  firstParams.set('from', `${departure.lng},${departure.lat},${encodeURIComponent(departure.address || '出发地')}`)
-  firstParams.set('to', `${validDeliveries[0].location.lng},${validDeliveries[0].location.lat},${encodeURIComponent(validDeliveries[0].address)}`)
-  firstParams.set('mode', 'car')
-  firstParams.set('policy', '1')
-  firstParams.set('coordinate', 'gaode')
-  firstParams.set('callnative', '1')
-  links.push(`${baseUrl}?${firstParams.toString()}`)
+  links.push(makeLink(departure, {
+    lng: validDeliveries[0].location.lng,
+    lat: validDeliveries[0].location.lat,
+    address: validDeliveries[0].address
+  }))
 
   // 每个配送点之间的导航
   for (let i = 0; i < validDeliveries.length - 1; i++) {
     const fromDelivery = validDeliveries[i]
     const toDelivery = validDeliveries[i + 1]
-    const params = new URLSearchParams()
-    params.set('from', `${fromDelivery.location.lng},${fromDelivery.location.lat},${encodeURIComponent(fromDelivery.address)}`)
-    params.set('to', `${toDelivery.location.lng},${toDelivery.location.lat},${encodeURIComponent(toDelivery.address)}`)
-    params.set('mode', 'car')
-    params.set('policy', '1')
-    params.set('coordinate', 'gaode')
-    params.set('callnative', '1')
-    links.push(`${baseUrl}?${params.toString()}`)
+    links.push(makeLink(
+      { lng: fromDelivery.location.lng, lat: fromDelivery.location.lat, address: fromDelivery.address },
+      { lng: toDelivery.location.lng, lat: toDelivery.location.lat, address: toDelivery.address }
+    ))
   }
 
   // 最后一个配送点 → 目的地
   const lastDelivery = validDeliveries[validDeliveries.length - 1]
-  const lastParams = new URLSearchParams()
-  lastParams.set('from', `${lastDelivery.location.lng},${lastDelivery.location.lat},${encodeURIComponent(lastDelivery.address)}`)
-  lastParams.set('to', `${destination.lng},${destination.lat},${encodeURIComponent(destination.address || '目的地')}`)
-  lastParams.set('mode', 'car')
-  lastParams.set('policy', '1')
-  lastParams.set('coordinate', 'gaode')
-  lastParams.set('callnative', '1')
-  links.push(`${baseUrl}?${lastParams.toString()}`)
+  links.push(makeLink(
+    { lng: lastDelivery.location.lng, lat: lastDelivery.location.lat, address: lastDelivery.address },
+    destination
+  ))
 
   return links
 }
