@@ -40,11 +40,14 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Immediate update for fresh content
+        skipWaiting: true,
+        clientsClaim: true,
         // Cache strategies for China performance
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            // Cache Supabase API calls
+            // Cache Supabase API calls - NetworkFirst for fresh data
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
             handler: 'NetworkFirst',
             options: {
@@ -53,7 +56,7 @@ export default defineConfig({
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 5, // 5 minutes
               },
-              networkTimeoutSeconds: 10,
+              networkTimeoutSeconds: 30, // Increased for slow mobile networks
             },
           },
           {
@@ -68,7 +71,23 @@ export default defineConfig({
               },
             },
           },
+          {
+            // Cache API calls - NetworkFirst
+            urlPattern: /^https:\/\/.*\.pages\.dev\/api\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              networkTimeoutSeconds: 30,
+              expiration: {
+                maxEntries: 30,
+                maxAgeSeconds: 60 * 2, // 2 minutes
+              },
+            },
+          },
         ],
+      },
+      devOptions: {
+        enabled: false, // Disable in dev to avoid confusion
       },
     }),
   ],

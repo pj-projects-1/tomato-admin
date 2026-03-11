@@ -84,3 +84,35 @@ app.use(router)
 app.use(ElementPlus, { locale: zhCn })
 
 app.mount('#app')
+
+// Register service worker with update handling for mobile reliability
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js')
+
+      // Check for updates on page load (helps mobile reliability)
+      registration.update()
+
+      // Handle updates - force reload when new version available
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // New content available, force reload to get it
+              newWorker.postMessage({ type: 'SKIP_WAITING' })
+            }
+          })
+        }
+      })
+    } catch (error) {
+      console.log('Service Worker registration failed:', error)
+    }
+  })
+
+  // Reload when new service worker takes control
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload()
+  })
+}
