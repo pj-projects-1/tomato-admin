@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3001',
+    baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'off',
@@ -24,7 +24,7 @@ export default defineConfig({
     },
     {
       name: 'mobile-chrome',
-      // Use system Chrome locally, Playwright Chromium in CI
+      // Mobile responsiveness tests
       use: {
         ...devices['Pixel 5'],
         ...(process.env.CI ? {} : { channel: 'chrome' }),
@@ -33,7 +33,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3001',
+    url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },

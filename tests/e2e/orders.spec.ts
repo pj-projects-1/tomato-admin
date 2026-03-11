@@ -1,22 +1,13 @@
 // tests/e2e/orders.spec.ts
 import { test, expect } from '@playwright/test'
 
-test.describe('Orders Page', () => {
-  // Note: These tests require authenticated state
-  // For full E2E testing, set up authentication state or use test fixtures
-
+test.describe('Orders Page - Unauthenticated', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to the app
     await page.goto('/')
-
-    // If on login page, the test will work with unauthenticated state
-    // For authenticated tests, implement login helper or use storageState
   })
 
   test('should redirect to login when not authenticated', async ({ page }) => {
     await page.goto('/orders')
-
-    // Should redirect to login since not authenticated
     await expect(page).toHaveURL(/\/login/)
   })
 
@@ -30,6 +21,57 @@ test.describe('Orders Page', () => {
   })
 })
 
+test.describe('Page Navigation - Unauthenticated', () => {
+  test('should redirect orders to login', async ({ page }) => {
+    await page.goto('/orders')
+    await expect(page).toHaveURL(/\/login/, { timeout: 10000 })
+  })
+
+  test('should redirect customers to login', async ({ page }) => {
+    await page.goto('/customers')
+    await expect(page).toHaveURL(/\/login/, { timeout: 10000 })
+  })
+
+  test('should redirect stocks to login', async ({ page }) => {
+    await page.goto('/stocks')
+    await expect(page).toHaveURL(/\/login/, { timeout: 10000 })
+  })
+})
+
+test.describe('App Layout - Desktop', () => {
+  test.use({ viewport: { width: 1280, height: 720 } })
+
+  test('should show login form centered on desktop', async ({ page }) => {
+    await page.goto('/login')
+
+    // Form should be visible
+    const form = page.locator('.el-card').first()
+    await expect(form).toBeVisible()
+
+    // Form should be reasonably sized (not full width)
+    const box = await form.boundingBox()
+    expect(box?.width).toBeGreaterThan(300)
+    expect(box?.width).toBeLessThan(800)
+  })
+})
+
+test.describe('App Layout - Mobile', () => {
+  test.use({ viewport: { width: 375, height: 812 } })
+
+  test('should show full width login form on mobile', async ({ page }) => {
+    await page.goto('/login')
+
+    // Form should be visible
+    const form = page.locator('.el-card').first()
+    await expect(form).toBeVisible()
+
+    // Form should use most of the mobile width
+    const box = await form.boundingBox()
+    expect(box?.width).toBeGreaterThan(300)
+    expect(box?.width).toBeLessThanOrEqual(375)
+  })
+})
+
 // Note: For authenticated order tests, you would need to:
 // 1. Create a test user in the database
 // 2. Use Playwright's storageState to persist auth
@@ -39,9 +81,16 @@ test.describe('Orders Page', () => {
 // test.describe('Orders - Authenticated', () => {
 //   test.use({ storageState: 'tests/.auth/user.json' })
 //
-//   test('should create new order', async ({ page }) => {
+//   test.beforeEach(async ({ page }) => {
 //     await page.goto('/orders')
+//   })
+//
+//   test('should display orders list', async ({ page }) => {
+//     await expect(page.getByRole('heading', { name: /订单/ })).toBeVisible()
+//   })
+//
+//   test('should open create order dialog', async ({ page }) => {
 //     await page.getByRole('button', { name: /新增/ }).click()
-//     // ... fill form and submit
+//     await expect(page.locator('.el-dialog')).toBeVisible()
 //   })
 // })
