@@ -117,11 +117,8 @@ export function exportDeliveryTask(task: any, deliveries: any[]) {
 }
 
 /**
- * 生成高德地图导航链接（使用 ditu.amap.com 格式，支持多途经点）
- * 文档: https://lbs.amap.com/api/uri-api/summary
- *
- * 使用 https://ditu.amap.com/dir 格式，支持多个途经点
- * 格式: https://ditu.amap.com/dir?type=car&from[lnglat]=经度,纬度&from[name]=名称&to[lnglat]=经度,纬度&to[name]=名称&via[0][lnglat]=经度,纬度&via[0][name]=名称...
+ * 生成高德地图导航链接
+ * 使用 uri.amap.com 格式，更可靠
  *
  * @param departure 出发地
  * @param destination 目的地（结束地）
@@ -136,26 +133,17 @@ export function generateAmapNavigationLink(
   const validDeliveries = deliveries.filter(d => d.location?.lng && d.location?.lat)
   if (validDeliveries.length === 0) return null
 
-  // 使用 ditu.amap.com/dir 格式（支持多个途经点）
-  const baseUrl = 'https://ditu.amap.com/dir'
+  // 使用 uri.amap.com 格式（官方 URI API，最可靠）
+  const baseUrl = 'https://uri.amap.com/navigation'
 
   // 构建参数
   const params = new URLSearchParams()
-  params.set('type', 'car')
-
-  // 起点 = 出发地
-  params.set('from[lnglat]', `${departure.lng},${departure.lat}`)
-  params.set('from[name]', departure.address || '出发地')
-
-  // 终点 = 目的地（结束地）
-  params.set('to[lnglat]', `${destination.lng},${destination.lat}`)
-  params.set('to[name]', destination.address || '目的地')
-
-  // 所有配送点都是途经点
-  validDeliveries.forEach((d, i) => {
-    params.set(`via[${i}][lnglat]`, `${d.location.lng},${d.location.lat}`)
-    params.set(`via[${i}][name]`, d.address)
-  })
+  params.set('from', `${departure.lng},${departure.lat},${encodeURIComponent(departure.address || '出发地')}`)
+  params.set('to', `${destination.lng},${destination.lat},${encodeURIComponent(destination.address || '目的地')}`)
+  params.set('mode', 'car')
+  params.set('policy', '1') // 推荐路线
+  params.set('coordinate', 'gaode')
+  params.set('callnative', '1') // 调起高德地图App
 
   return `${baseUrl}?${params.toString()}`
 }
@@ -173,15 +161,16 @@ export function generateSegmentedNavigationLinks(
   if (validDeliveries.length === 0) return []
 
   const links: string[] = []
-  const baseUrl = 'https://ditu.amap.com/dir'
+  const baseUrl = 'https://uri.amap.com/navigation'
 
   // 起点 → 第一个配送点
   const firstParams = new URLSearchParams()
-  firstParams.set('type', 'car')
-  firstParams.set('from[lnglat]', `${departure.lng},${departure.lat}`)
-  firstParams.set('from[name]', departure.address || '出发地')
-  firstParams.set('to[lnglat]', `${validDeliveries[0].location.lng},${validDeliveries[0].location.lat}`)
-  firstParams.set('to[name]', validDeliveries[0].address)
+  firstParams.set('from', `${departure.lng},${departure.lat},${encodeURIComponent(departure.address || '出发地')}`)
+  firstParams.set('to', `${validDeliveries[0].location.lng},${validDeliveries[0].location.lat},${encodeURIComponent(validDeliveries[0].address)}`)
+  firstParams.set('mode', 'car')
+  firstParams.set('policy', '1')
+  firstParams.set('coordinate', 'gaode')
+  firstParams.set('callnative', '1')
   links.push(`${baseUrl}?${firstParams.toString()}`)
 
   // 每个配送点之间的导航
@@ -189,22 +178,24 @@ export function generateSegmentedNavigationLinks(
     const fromDelivery = validDeliveries[i]
     const toDelivery = validDeliveries[i + 1]
     const params = new URLSearchParams()
-    params.set('type', 'car')
-    params.set('from[lnglat]', `${fromDelivery.location.lng},${fromDelivery.location.lat}`)
-    params.set('from[name]', fromDelivery.address)
-    params.set('to[lnglat]', `${toDelivery.location.lng},${toDelivery.location.lat}`)
-    params.set('to[name]', toDelivery.address)
+    params.set('from', `${fromDelivery.location.lng},${fromDelivery.location.lat},${encodeURIComponent(fromDelivery.address)}`)
+    params.set('to', `${toDelivery.location.lng},${toDelivery.location.lat},${encodeURIComponent(toDelivery.address)}`)
+    params.set('mode', 'car')
+    params.set('policy', '1')
+    params.set('coordinate', 'gaode')
+    params.set('callnative', '1')
     links.push(`${baseUrl}?${params.toString()}`)
   }
 
   // 最后一个配送点 → 目的地
   const lastDelivery = validDeliveries[validDeliveries.length - 1]
   const lastParams = new URLSearchParams()
-  lastParams.set('type', 'car')
-  lastParams.set('from[lnglat]', `${lastDelivery.location.lng},${lastDelivery.location.lat}`)
-  lastParams.set('from[name]', lastDelivery.address)
-  lastParams.set('to[lnglat]', `${destination.lng},${destination.lat}`)
-  lastParams.set('to[name]', destination.address || '目的地')
+  lastParams.set('from', `${lastDelivery.location.lng},${lastDelivery.location.lat},${encodeURIComponent(lastDelivery.address)}`)
+  lastParams.set('to', `${destination.lng},${destination.lat},${encodeURIComponent(destination.address || '目的地')}`)
+  lastParams.set('mode', 'car')
+  lastParams.set('policy', '1')
+  lastParams.set('coordinate', 'gaode')
+  lastParams.set('callnative', '1')
   links.push(`${baseUrl}?${lastParams.toString()}`)
 
   return links
