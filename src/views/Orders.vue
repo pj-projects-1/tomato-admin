@@ -124,45 +124,51 @@
         </el-table-column>
       </el-table>
 
-      <!-- Mobile: Card view -->
+      <!-- Mobile: Card view with virtual scrolling -->
       <div class="mobile-card-list" v-loading="orderStore.loading">
-        <div
-          v-for="row in mobileOrders"
-          :key="row.id"
-          class="order-mobile-card"
-          @click="viewOrder(row)"
-        >
-          <div class="card-header-row">
-            <span class="customer-name">{{ row.customer?.name || '-' }}</span>
-            <el-tag :type="getStatusType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </div>
-          <div class="card-info-row">
-            <span class="amount">¥{{ row.total_amount || 0 }}</span>
-            <span>{{ row.total_boxes }}箱</span>
-            <el-tag :type="row.paid ? 'success' : 'warning'" size="small">
-              {{ row.paid ? '已付' : '未付' }}
-            </el-tag>
-          </div>
-          <div class="card-footer">
-            <span class="time">{{ formatDate(row.created_at) }}</span>
-            <span class="delivery-info">{{ row.deliveries?.length || 0 }}个配送点</span>
-          </div>
-          <div class="card-actions" v-if="row.status === 'pending' || !row.paid">
-            <el-button v-if="row.status === 'pending'" size="small" type="success" @click.stop="confirmOrder(row)">确认</el-button>
-            <el-button v-if="!row.paid" size="small" type="warning" @click.stop="markPaid(row)">收款</el-button>
-            <el-button v-if="row.status === 'pending'" size="small" type="danger" @click.stop="cancelOrder(row)">删除</el-button>
-          </div>
+        <!-- Count indicator -->
+        <div v-if="orderStore.orders.length > 0" class="mobile-count-indicator">
+          共 {{ totalOrders }} 条
         </div>
-        <el-empty v-if="orderStore.orders.length === 0" description="暂无订单" />
 
-        <!-- Mobile: Load More button -->
-        <div v-if="hasMoreMobile && orderStore.orders.length > 0" class="load-more-container">
-          <el-button @click="loadMore" :loading="orderStore.loading">
-            加载更多 ({{ mobileOrders.length }}/{{ totalOrders }})
-          </el-button>
-        </div>
+        <RecycleScroller
+          v-if="orderStore.orders.length > 0"
+          class="mobile-scroller"
+          :items="orderStore.orders"
+          :item-size="140"
+          key-field="id"
+          v-slot="{ item }"
+        >
+          <div
+            class="order-mobile-card"
+            @click="viewOrder(item)"
+          >
+            <div class="card-header-row">
+              <span class="customer-name">{{ item.customer?.name || '-' }}</span>
+              <el-tag :type="getStatusType(item.status)" size="small">
+                {{ getStatusText(item.status) }}
+              </el-tag>
+            </div>
+            <div class="card-info-row">
+              <span class="amount">¥{{ item.total_amount || 0 }}</span>
+              <span>{{ item.total_boxes }}箱</span>
+              <el-tag :type="item.paid ? 'success' : 'warning'" size="small">
+                {{ item.paid ? '已付' : '未付' }}
+              </el-tag>
+            </div>
+            <div class="card-footer">
+              <span class="time">{{ formatDate(item.created_at) }}</span>
+              <span class="delivery-info">{{ item.deliveries?.length || 0 }}个配送点</span>
+            </div>
+            <div class="card-actions" v-if="item.status === 'pending' || !item.paid">
+              <el-button v-if="item.status === 'pending'" size="small" type="success" @click.stop="confirmOrder(item)">确认</el-button>
+              <el-button v-if="!item.paid" size="small" type="warning" @click.stop="markPaid(item)">收款</el-button>
+              <el-button v-if="item.status === 'pending'" size="small" type="danger" @click.stop="cancelOrder(item)">删除</el-button>
+            </div>
+          </div>
+        </RecycleScroller>
+
+        <el-empty v-if="orderStore.orders.length === 0" description="暂无订单" />
       </div>
 
       <!-- Desktop: Pagination -->
@@ -396,11 +402,9 @@ const {
 // Pagination
 const currentPage = ref(1)
 const pageSize = 20
-const mobileDisplayCount = ref(pageSize)
 
 // Computed for pagination
 const totalOrders = computed(() => orderStore.orders.length)
-const totalPages = computed(() => Math.ceil(totalOrders.value / pageSize))
 
 // Desktop: show only current page
 const desktopOrders = computed(() => {
@@ -409,24 +413,12 @@ const desktopOrders = computed(() => {
   return orderStore.orders.slice(start, end)
 })
 
-// Mobile: show all up to mobileDisplayCount (load more pattern)
-const mobileOrders = computed(() => {
-  return orderStore.orders.slice(0, mobileDisplayCount.value)
-})
-
-const hasMoreMobile = computed(() => mobileDisplayCount.value < totalOrders.value)
-
 function handlePageChange(page: number) {
   currentPage.value = page
 }
 
-function loadMore() {
-  mobileDisplayCount.value += pageSize
-}
-
 function resetPagination() {
   currentPage.value = 1
-  mobileDisplayCount.value = pageSize
 }
 
 const dialogVisible = ref(false)
@@ -812,12 +804,6 @@ async function batchDelete() {
   margin-top: 16px;
 }
 
-.load-more-container {
-  display: flex;
-  justify-content: center;
-  padding: 12px 0;
-}
-
 /* Hide desktop pagination on mobile */
 @media (max-width: 767px) {
   .desktop-pagination {
@@ -933,7 +919,24 @@ async function batchDelete() {
   }
 
   .mobile-card-list {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 280px);
+    min-height: 300px;
+  }
+
+  .mobile-count-indicator {
+    text-align: center;
+    padding: 8px;
+    font-size: 13px;
+    color: #909399;
+    background: #f5f7fa;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+
+  .mobile-scroller {
+    flex: 1;
   }
 
   .filter-bar {

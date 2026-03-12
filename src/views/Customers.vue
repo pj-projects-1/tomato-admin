@@ -79,39 +79,45 @@
         </el-table-column>
       </el-table>
 
-      <!-- Mobile: Card view -->
+      <!-- Mobile: Card view with virtual scrolling -->
       <div class="mobile-card-list" v-loading="customerStore.loading">
-        <div
-          v-for="row in mobileCustomers"
-          :key="row.id"
-          class="customer-mobile-card"
-          @click="showEditDialog(row)"
-        >
-          <div class="card-header-row">
-            <span class="customer-name">{{ row.name }}</span>
-            <el-tag size="small" type="info">{{ row.addresses?.length || 0 }}地址</el-tag>
-          </div>
-          <div class="card-info-row">
-            <span v-if="row.wechat">微信: {{ row.wechat }}</span>
-            <span v-if="row.phone">电话: <PhoneField :phone="row.phone" /></span>
-          </div>
-          <div class="card-footer" v-if="row.note">
-            <span class="note">{{ row.note }}</span>
-          </div>
-          <div class="card-actions">
-            <el-button size="small" type="primary" @click.stop="showEditDialog(row)">编辑</el-button>
-            <el-button size="small" @click.stop="viewOrders(row)">订单</el-button>
-            <el-button size="small" type="danger" @click.stop="handleDelete(row)">删除</el-button>
-          </div>
+        <!-- Count indicator -->
+        <div v-if="customerStore.customers.length > 0" class="mobile-count-indicator">
+          共 {{ totalCustomers }} 条
         </div>
-        <el-empty v-if="customerStore.customers.length === 0" description="暂无客户" />
 
-        <!-- Mobile: Load More button -->
-        <div v-if="hasMoreMobile && customerStore.customers.length > 0" class="load-more-container">
-          <el-button @click="loadMore" :loading="customerStore.loading">
-            加载更多 ({{ mobileCustomers.length }}/{{ totalCustomers }})
-          </el-button>
-        </div>
+        <RecycleScroller
+          v-if="customerStore.customers.length > 0"
+          class="mobile-scroller"
+          :items="customerStore.customers"
+          :item-size="150"
+          key-field="id"
+          v-slot="{ item }"
+        >
+          <div
+            class="customer-mobile-card"
+            @click="showEditDialog(item)"
+          >
+            <div class="card-header-row">
+              <span class="customer-name">{{ item.name }}</span>
+              <el-tag size="small" type="info">{{ item.addresses?.length || 0 }}地址</el-tag>
+            </div>
+            <div class="card-info-row">
+              <span v-if="item.wechat">微信: {{ item.wechat }}</span>
+              <span v-if="item.phone">电话: <PhoneField :phone="item.phone" /></span>
+            </div>
+            <div class="card-footer" v-if="item.note">
+              <span class="note">{{ item.note }}</span>
+            </div>
+            <div class="card-actions">
+              <el-button size="small" type="primary" @click.stop="showEditDialog(item)">编辑</el-button>
+              <el-button size="small" @click.stop="viewOrders(item)">订单</el-button>
+              <el-button size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
+            </div>
+          </div>
+        </RecycleScroller>
+
+        <el-empty v-if="customerStore.customers.length === 0" description="暂无客户" />
       </div>
 
       <!-- Desktop: Pagination -->
@@ -241,7 +247,6 @@ const {
 // Pagination
 const currentPage = ref(1)
 const pageSize = 20
-const mobileDisplayCount = ref(pageSize) // For "load more" on mobile
 
 const searchKeyword = ref('')
 const dialogVisible = ref(false)
@@ -252,7 +257,6 @@ const editingId = ref('')
 
 // Computed for pagination
 const totalCustomers = computed(() => customerStore.customers.length)
-const totalPages = computed(() => Math.ceil(totalCustomers.value / pageSize))
 
 // Desktop: show only current page
 const desktopCustomers = computed(() => {
@@ -261,24 +265,12 @@ const desktopCustomers = computed(() => {
   return customerStore.customers.slice(start, end)
 })
 
-// Mobile: show all up to mobileDisplayCount (load more pattern)
-const mobileCustomers = computed(() => {
-  return customerStore.customers.slice(0, mobileDisplayCount.value)
-})
-
-const hasMoreMobile = computed(() => mobileDisplayCount.value < totalCustomers.value)
-
 function handlePageChange(page: number) {
   currentPage.value = page
 }
 
-function loadMore() {
-  mobileDisplayCount.value += pageSize
-}
-
 function resetPagination() {
   currentPage.value = 1
-  mobileDisplayCount.value = pageSize
 }
 
 const form = reactive({
@@ -435,12 +427,6 @@ function viewOrders(customer: Customer) {
   margin-top: 16px;
 }
 
-.load-more-container {
-  display: flex;
-  justify-content: center;
-  padding: 12px 0;
-}
-
 /* Hide desktop pagination on mobile */
 @media (max-width: 767px) {
   .desktop-pagination {
@@ -504,7 +490,24 @@ function viewOrders(customer: Customer) {
   }
 
   .mobile-card-list {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 280px);
+    min-height: 300px;
+  }
+
+  .mobile-count-indicator {
+    text-align: center;
+    padding: 8px;
+    font-size: 13px;
+    color: #909399;
+    background: #f5f7fa;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+
+  .mobile-scroller {
+    flex: 1;
   }
 
   .filter-bar {

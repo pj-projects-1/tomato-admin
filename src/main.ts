@@ -3,6 +3,8 @@ import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+// @ts-expect-error - vue-virtual-scroller lacks proper type definitions
+import VueVirtualScroller from 'vue-virtual-scroller'
 
 import App from './App.vue'
 import router from './router'
@@ -11,6 +13,7 @@ import { checkUnsavedChanges } from './utils/errorRecovery'
 import { initErrorMonitoring } from './lib/errorMonitoring'
 import { useAuthStore } from './stores/auth'
 import 'element-plus/dist/index.css'
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import './style.css'
 
 // Global error handler for Vue errors - minimal, non-intrusive
@@ -78,6 +81,7 @@ async function initializeApp() {
   app.use(pinia)
   app.use(router)
   app.use(ElementPlus, { locale: zhCn })
+  app.use(VueVirtualScroller)
 
   // Initialize error monitoring (Sentry + Fundebug)
   initErrorMonitoring(app, router)
@@ -108,6 +112,7 @@ initializeApp().catch((error) => {
   app.use(pinia)
   app.use(router)
   app.use(ElementPlus, { locale: zhCn })
+  app.use(VueVirtualScroller)
   app.mount('#app')
 })
 
