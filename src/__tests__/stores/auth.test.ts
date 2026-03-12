@@ -72,7 +72,7 @@ describe('Auth Store', () => {
       const store = useAuthStore()
       const result = await store.signIn('nonexistent', 'password')
       expect(result.success).toBe(false)
-      expect(result.error).toBe('用户名不存在')
+      expect(result.error).toBe('用户名或密码错误')
     })
   })
 })
