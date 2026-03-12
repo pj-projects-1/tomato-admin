@@ -111,10 +111,10 @@ export const useAuthStore = defineStore('auth', () => {
       // Determine if identifier is email or username
       let email = identifier
       if (!isEmail(identifier)) {
-        // Look up email by username
+        // Look up email by username (case-insensitive)
         const foundEmail = await getEmailByUsername(identifier)
         if (!foundEmail) {
-          return { success: false, error: '用户名不存在' }
+          return { success: false, error: '用户名或密码错误' }
         }
         email = foundEmail
       }
@@ -136,7 +136,6 @@ export const useAuthStore = defineStore('auth', () => {
       return { success: true }
     } catch (error) {
       const message = (error as Error).message
-      // Translate common error messages
       if (message.includes('Invalid login credentials')) {
         return { success: false, error: '用户名或密码错误' }
       }
@@ -158,19 +157,28 @@ export const useAuthStore = defineStore('auth', () => {
       })
       if (error) throw error
 
-      // Create profile with email (in case trigger doesn't exist)
-      if (data.user) {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          name,
-          email,
-          role: 'staff',
-        })
+      // User should be immediately signed in (email confirmation disabled)
+      if (data.user && data.session) {
+        session.value = data.session
+        user.value = data.user
+        try {
+          profile.value = await getProfile(data.user.id)
+        } catch {
+          // Profile will be created by trigger
+        }
       }
 
       return { success: true, user: data.user }
     } catch (error) {
-      return { success: false, error: (error as Error).message }
+      const message = (error as Error).message
+      // Translate common error messages
+      if (message.includes('already registered')) {
+        return { success: false, error: '该邮箱已被注册' }
+      }
+      if (message.includes('Password')) {
+        return { success: false, error: '密码强度不足，请使用至少6位密码' }
+      }
+      return { success: false, error: message }
     } finally {
       loading.value = false
     }

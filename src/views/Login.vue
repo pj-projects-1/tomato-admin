@@ -161,8 +161,6 @@ async function handleLogin() {
   try {
     const result = await authStore.signIn(form.identifier, form.password)
     if (result.success) {
-      // Force update session cache BEFORE navigation to prevent race condition
-      // This ensures the router guard sees the updated session state
       forceUpdateSessionCache(true)
       ElMessage.success('登录成功')
       const redirect = route.query.redirect as string
@@ -189,8 +187,14 @@ async function handleRegister() {
       registerForm.name
     )
     if (result.success) {
-      ElMessage.success('注册成功，请查收验证邮件')
+      ElMessage.success('注册成功！')
       showRegister.value = false
+      // Auto-login after registration
+      const loginResult = await authStore.signIn(registerForm.email, registerForm.password)
+      if (loginResult.success) {
+        forceUpdateSessionCache(true)
+        router.push('/')
+      }
     } else {
       ElMessage.error(result.error || '注册失败')
     }
