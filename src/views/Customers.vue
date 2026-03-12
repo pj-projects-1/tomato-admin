@@ -12,7 +12,7 @@
       <div class="header-actions">
         <el-button @click="handleExport" :disabled="customerStore.customers.length === 0">
           <el-icon><Download /></el-icon>
-          导出
+          导出 ({{ totalCustomers }}条)
         </el-button>
         <el-button type="primary" @click="showAddDialog">
           <el-icon><Plus /></el-icon>
@@ -305,8 +305,9 @@ function handleSearch() {
 }
 
 function handleExport() {
-  exportCustomers(customerStore.customers)
-  ElMessage.success('导出成功')
+  const filenameSuffix = searchKeyword.value ? `_搜索${searchKeyword.value}` : ''
+  exportCustomers(customerStore.customers, filenameSuffix)
+  ElMessage.success(`已导出 ${totalCustomers.value} 条客户`)
 }
 
 function formatDate(date: string) {

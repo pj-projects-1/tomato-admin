@@ -31,6 +31,13 @@
             <el-icon><Plus /></el-icon>
             创建任务 ({{ selectedDeliveries.length }})
           </el-button>
+          <el-button
+            @click="handleExport"
+            :disabled="deliveryStore.pendingDeliveries.length === 0"
+          >
+            <el-icon><Download /></el-icon>
+            导出 ({{ deliveryStore.pendingDeliveries.length }}条)
+          </el-button>
         </div>
       </div>
     </div>
@@ -551,6 +558,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { useDeliveryStore } from '@/stores/deliveries'
 import { getAmapService, DEFAULT_DEPARTURE, DEFAULT_DEPARTURE_ADDRESS, type Location } from '@/api/amap'
+import { exportPendingDeliveries } from '@/api/export'
 import { usePullRefresh } from '@/composables/usePullRefresh'
 import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
 import PhoneField from '@/components/PhoneField.vue'
@@ -751,6 +759,11 @@ onUnmounted(() => {
 
 function handleSelectionChange(selection: OrderDelivery[]) {
   selectedDeliveries.value = selection
+}
+
+function handleExport() {
+  exportPendingDeliveries(deliveryStore.pendingDeliveries)
+  ElMessage.success(`已导出 ${deliveryStore.pendingDeliveries.length} 条待配送`)
 }
 
 function toggleDeliverySelection(delivery: OrderDelivery) {

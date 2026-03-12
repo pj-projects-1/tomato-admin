@@ -12,7 +12,7 @@
       <div class="header-actions">
         <el-button @click="handleExport" :disabled="orderStore.orders.length === 0">
           <el-icon><Download /></el-icon>
-          导出
+          导出 ({{ totalOrders }}条)
         </el-button>
         <el-button type="primary" @click="showAddDialog">
           <el-icon><Plus /></el-icon>
@@ -532,8 +532,18 @@ function resetFilters() {
 }
 
 function handleExport() {
-  exportOrders(orderStore.orders)
-  ElMessage.success('导出成功')
+  // Build filename suffix based on active filters
+  const filterParts: string[] = []
+  if (filters.status) {
+    filterParts.push(getStatusText(filters.status))
+  }
+  if (filters.paid !== undefined) {
+    filterParts.push(filters.paid ? '已付款' : '未付款')
+  }
+
+  const filenameSuffix = filterParts.length > 0 ? `_${filterParts.join('_')}` : ''
+  exportOrders(orderStore.orders, filenameSuffix)
+  ElMessage.success(`已导出 ${totalOrders.value} 条订单`)
 }
 
 function formatDate(date: string) {

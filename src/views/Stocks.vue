@@ -11,7 +11,7 @@
       <div class="header-actions">
         <el-button @click="handleExport" :disabled="stockStore.stocks.length === 0">
           <el-icon><Download /></el-icon>
-          导出
+          导出 ({{ stockStore.stocks.length }}条)
         </el-button>
         <el-button type="success" @click="showStockInDialog">
           <el-icon><Plus /></el-icon>
@@ -428,7 +428,7 @@ function getTypeText(type: StockType) {
 
 function handleExport() {
   exportStocks(stockStore.stocks)
-  ElMessage.success('导出成功')
+  ElMessage.success(`已导出 ${stockStore.stocks.length} 条库存记录`)
 }
 
 function showStockInDialog() {

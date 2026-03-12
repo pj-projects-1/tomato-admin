@@ -40,7 +40,7 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 /**
  * 导出客户列表
  */
-export function exportCustomers(customers: any[]) {
+export function exportCustomers(customers: any[], filenameSuffix = '') {
   const headers = ['客户名称', '微信号', '电话', '地址数量', '备注', '创建时间']
   const rows = customers.map(c => [
     c.name,
@@ -52,13 +52,13 @@ export function exportCustomers(customers: any[]) {
   ])
 
   const csv = toCSV(headers, rows)
-  downloadFile(csv, `客户列表_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
+  downloadFile(csv, `客户列表${filenameSuffix}_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
 }
 
 /**
  * 导出订单列表
  */
-export function exportOrders(orders: any[]) {
+export function exportOrders(orders: any[], filenameSuffix = '') {
   const headers = ['客户名称', '总箱数', '金额', '付款状态', '订单状态', '配送地址数', '创建时间', '付款时间']
   const rows = orders.map(o => [
     o.customer?.name || '',
@@ -72,13 +72,13 @@ export function exportOrders(orders: any[]) {
   ])
 
   const csv = toCSV(headers, rows)
-  downloadFile(csv, `订单列表_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
+  downloadFile(csv, `订单列表${filenameSuffix}_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
 }
 
 /**
  * 导出库存流水
  */
-export function exportStocks(stocks: any[]) {
+export function exportStocks(stocks: any[], filenameSuffix = '') {
   const headers = ['类型', '数量', '库存余额', '单价', '采摘日期', '入库日期', '关联订单', '备注', '操作时间']
   const rows = stocks.map(s => [
     getTypeText(s.type),
@@ -93,7 +93,25 @@ export function exportStocks(stocks: any[]) {
   ])
 
   const csv = toCSV(headers, rows)
-  downloadFile(csv, `库存流水_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
+  downloadFile(csv, `库存流水${filenameSuffix}_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
+}
+
+/**
+ * 导出待配送列表
+ */
+export function exportPendingDeliveries(deliveries: any[], filenameSuffix = '') {
+  const headers = ['客户', '收件人', '电话', '地址', '数量', '订单状态']
+  const rows = deliveries.map(d => [
+    d.order?.customer?.name || '',
+    d.recipient_name || d.order?.customer?.name || '',
+    d.recipient_phone || d.order?.customer?.phone || '',
+    d.address,
+    d.quantity,
+    getDeliveryStatusText(d.status),
+  ])
+
+  const csv = toCSV(headers, rows)
+  downloadFile(csv, `待配送列表${filenameSuffix}_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
 }
 
 /**
