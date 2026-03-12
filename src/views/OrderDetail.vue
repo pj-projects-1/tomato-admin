@@ -600,11 +600,27 @@ async function deleteDelivery(delivery: OrderDelivery) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .header-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Override global mobile styles - keep horizontal layout */
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
 }
 
 .delivery-card {
