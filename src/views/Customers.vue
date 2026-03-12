@@ -1,5 +1,12 @@
 <template>
-  <div class="page-container">
+  <div class="page-container" ref="pageContainerRef">
+    <!-- Pull to refresh indicator -->
+    <PullRefreshIndicator
+      :pull-distance="pullDistance"
+      :is-refreshing="isRefreshing"
+      :threshold="THRESHOLD"
+    />
+
     <div class="page-header">
       <h1 class="page-title">客户管理</h1>
       <div class="header-actions">
@@ -181,18 +188,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import dayjs from 'dayjs'
 import { useCustomerStore } from '@/stores/customers'
 import { exportCustomers } from '@/api/export'
+import { usePullRefresh } from '@/composables/usePullRefresh'
+import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
 import AddressInput from '@/components/AddressInput.vue'
 import type { Customer, CustomerAddress } from '@/types'
 
 const router = useRouter()
 const customerStore = useCustomerStore()
+
+// Pull to refresh setup
+const pageContainerRef = ref<HTMLElement | null>(null)
+const {
+  isRefreshing,
+  pullDistance,
+  setupListeners,
+  cleanupListeners,
+  THRESHOLD,
+} = usePullRefresh(async () => {
+  await customerStore.fetchCustomers(searchKeyword.value)
+})
 
 const searchKeyword = ref('')
 const dialogVisible = ref(false)
@@ -217,6 +238,14 @@ const rules: FormRules = {
 
 onMounted(() => {
   customerStore.fetchCustomers()
+  // Setup pull-to-refresh listeners
+  if (pageContainerRef.value) {
+    setupListeners(pageContainerRef.value)
+  }
+})
+
+onUnmounted(() => {
+  cleanupListeners()
 })
 
 function handleSearch() {
@@ -333,6 +362,11 @@ function viewOrders(customer: Customer) {
 </script>
 
 <style scoped>
+.page-container {
+  position: relative;
+  min-height: 100%;
+}
+
 .address-list {
   width: 100%;
 }

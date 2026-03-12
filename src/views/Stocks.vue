@@ -1,5 +1,11 @@
 <template>
-  <div class="page-container">
+  <div class="page-container" ref="pageContainerRef">
+    <!-- Pull to refresh indicator -->
+    <PullRefreshIndicator
+      :pull-distance="pullDistance"
+      :is-refreshing="isRefreshing"
+      :threshold="THRESHOLD"
+    />
     <div class="page-header">
       <h1 class="page-title">库存管理</h1>
       <div class="header-actions">
@@ -309,17 +315,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import dayjs from 'dayjs'
 import { useStockStore } from '@/stores/stocks'
 import { exportStocks } from '@/api/export'
+import { usePullRefresh } from '@/composables/usePullRefresh'
+import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
 import type { Stock, StockType } from '@/types'
 
 const router = useRouter()
 const stockStore = useStockStore()
+
+// Pull to refresh setup
+const pageContainerRef = ref<HTMLElement | null>(null)
+const {
+  isRefreshing,
+  pullDistance,
+  setupListeners,
+  cleanupListeners,
+  THRESHOLD,
+} = usePullRefresh(async () => {
+  await stockStore.fetchStocks()
+  await stockStore.fetchCurrentBalance()
+})
 
 const submitting = ref(false)
 const stockInDialogVisible = ref(false)
@@ -368,6 +389,14 @@ const stockRules: FormRules = {
 onMounted(() => {
   stockStore.fetchStocks()
   stockStore.fetchCurrentBalance()
+  // Setup pull-to-refresh listeners
+  if (pageContainerRef.value) {
+    setupListeners(pageContainerRef.value)
+  }
+})
+
+onUnmounted(() => {
+  cleanupListeners()
 })
 
 function formatDateTime(date: string) {
@@ -546,6 +575,11 @@ function viewOrder(orderId: string) {
 </script>
 
 <style scoped>
+.page-container {
+  position: relative;
+  min-height: 100%;
+}
+
 .stat-row {
   margin-bottom: 20px;
 }

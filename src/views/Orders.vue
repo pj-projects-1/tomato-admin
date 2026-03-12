@@ -1,5 +1,12 @@
 <template>
-  <div class="page-container">
+  <div class="page-container" ref="pageContainerRef">
+    <!-- Pull to refresh indicator -->
+    <PullRefreshIndicator
+      :pull-distance="pullDistance"
+      :is-refreshing="isRefreshing"
+      :threshold="THRESHOLD"
+    />
+
     <div class="page-header">
       <h1 class="page-title">订单管理</h1>
       <div class="header-actions">
@@ -337,7 +344,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules, TableInstance } from 'element-plus'
@@ -345,6 +352,8 @@ import dayjs from 'dayjs'
 import { useOrderStore } from '@/stores/orders'
 import { useCustomerStore } from '@/stores/customers'
 import { exportOrders } from '@/api/export'
+import { usePullRefresh } from '@/composables/usePullRefresh'
+import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
 import AddressSelector from '@/components/AddressSelector.vue'
 import type { Order, OrderStatus, OrderDelivery } from '@/types'
 
@@ -352,6 +361,19 @@ const router = useRouter()
 const route = useRoute()
 const orderStore = useOrderStore()
 const customerStore = useCustomerStore()
+
+// Pull to refresh setup
+const pageContainerRef = ref<HTMLElement | null>(null)
+const {
+  isRefreshing,
+  pullDistance,
+  setupListeners,
+  cleanupListeners,
+  THRESHOLD,
+} = usePullRefresh(async () => {
+  await customerStore.fetchCustomers()
+  await handleFilter()
+})
 
 const dialogVisible = ref(false)
 const paymentDialogVisible = ref(false)
@@ -432,6 +454,14 @@ const selectedCustomerAddresses = computed(() => {
 onMounted(async () => {
   await customerStore.fetchCustomers()
   await handleFilter()
+  // Setup pull-to-refresh listeners
+  if (pageContainerRef.value) {
+    setupListeners(pageContainerRef.value)
+  }
+})
+
+onUnmounted(() => {
+  cleanupListeners()
 })
 
 async function handleFilter() {
@@ -714,6 +744,11 @@ async function batchDelete() {
 </script>
 
 <style scoped>
+.page-container {
+  position: relative;
+  min-height: 100%;
+}
+
 .delivery-list {
   border: 1px solid #e4e7ed;
   border-radius: 4px;

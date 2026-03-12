@@ -1,5 +1,12 @@
 <template>
-  <div class="page-container">
+  <div class="page-container" ref="pageContainerRef">
+    <!-- Pull to refresh indicator -->
+    <PullRefreshIndicator
+      :pull-distance="pullDistance"
+      :is-refreshing="isRefreshing"
+      :threshold="THRESHOLD"
+    />
+
     <div class="page-header">
       <h1 class="page-title">配送规划</h1>
       <div class="header-top-row">
@@ -544,12 +551,27 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { useDeliveryStore } from '@/stores/deliveries'
 import { getAmapService, DEFAULT_DEPARTURE, DEFAULT_DEPARTURE_ADDRESS, type Location } from '@/api/amap'
+import { usePullRefresh } from '@/composables/usePullRefresh'
+import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
 import AddressInput from '@/components/AddressInput.vue'
 import type { DeliveryTask, DeliveryTaskStatus, OrderDelivery, OptimizedRoute, RouteStep } from '@/types'
 import type { TableInstance } from 'element-plus'
 
 const router = useRouter()
 const deliveryStore = useDeliveryStore()
+
+// Pull to refresh setup
+const pageContainerRef = ref<HTMLElement | null>(null)
+const {
+  isRefreshing,
+  pullDistance,
+  setupListeners,
+  cleanupListeners,
+  THRESHOLD,
+} = usePullRefresh(async () => {
+  await deliveryStore.fetchPendingDeliveries()
+  await deliveryStore.fetchDeliveryTasks()
+})
 
 const tableRef = ref<TableInstance>()
 const selectedDeliveries = ref<OrderDelivery[]>([])
@@ -710,9 +732,15 @@ onMounted(() => {
   loadRecentLocations()
   deliveryStore.fetchPendingDeliveries()
   deliveryStore.fetchDeliveryTasks()
+  // Setup pull-to-refresh listeners
+  if (pageContainerRef.value) {
+    setupListeners(pageContainerRef.value)
+  }
 })
 
 onUnmounted(() => {
+  // Cleanup pull-to-refresh
+  cleanupListeners()
   if (mapInstance.value) {
     mapInstance.value.destroy()
     mapInstance.value = null
@@ -1206,6 +1234,11 @@ watch(selectedStrategy, async (newStrategy) => {
 </script>
 
 <style scoped>
+.page-container {
+  position: relative;
+  min-height: 100%;
+}
+
 .header-actions {
   display: flex;
   gap: 8px;
