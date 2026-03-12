@@ -110,7 +110,7 @@ export default defineConfig({
           // Split vendor libraries for better caching
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
           'element-plus': ['element-plus', '@element-plus/icons-vue'],
-          'echarts': ['echarts', 'vue-echarts'],
+          // Note: echarts removed - not currently used in the app
           'supabase': ['@supabase/supabase-js'],
         },
       },

@@ -1,7 +1,7 @@
 <template>
-  <div class="dashboard-container" v-loading="loading">
+  <div class="dashboard-container">
     <!-- 销售数据卡片 -->
-    <el-row :gutter="20" class="stats-row">
+    <el-row :gutter="20" class="stats-row" v-loading="loadingStats">
       <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
@@ -169,7 +169,7 @@
     <!-- 近期数据 -->
     <el-row :gutter="20">
       <el-col :xs="24" :lg="12">
-        <el-card shadow="never">
+        <el-card shadow="never" v-loading="loadingOrders">
           <template #header>
             <div class="card-header">
               <span>近期订单</span>
@@ -219,12 +219,12 @@
               </div>
             </div>
           </div>
-          <el-empty v-if="recentOrders.length === 0" description="暂无订单" />
+          <el-empty v-if="recentOrders.length === 0 && !loadingOrders" description="暂无订单" />
         </el-card>
       </el-col>
 
       <el-col :xs="24" :lg="12">
-        <el-card shadow="never">
+        <el-card shadow="never" v-loading="loadingStocks">
           <template #header>
             <div class="card-header">
               <span>库存流水</span>
@@ -276,7 +276,7 @@
               </div>
             </div>
           </div>
-          <el-empty v-if="recentStocks.length === 0" description="暂无库存记录" />
+          <el-empty v-if="recentStocks.length === 0 && !loadingStocks" description="暂无库存记录" />
         </el-card>
       </el-col>
     </el-row>
@@ -292,6 +292,9 @@ import dayjs from 'dayjs'
 const dashboardStore = useDashboardStore()
 
 const loading = computed(() => dashboardStore.loading)
+const loadingStats = computed(() => dashboardStore.loadingStats)
+const loadingOrders = computed(() => dashboardStore.loadingOrders)
+const loadingStocks = computed(() => dashboardStore.loadingStocks)
 const periodStats = computed(() => dashboardStore.periodStats)
 const orderStats = computed(() => dashboardStore.orderStats)
 const currentStock = computed(() => dashboardStore.currentStock)

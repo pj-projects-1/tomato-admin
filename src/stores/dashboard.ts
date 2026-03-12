@@ -27,6 +27,15 @@ export interface PeriodStats {
 export const useDashboardStore = defineStore('dashboard', () => {
   const loading = ref(false)
 
+  // Individual loading states for granular UX
+  const loadingStats = ref(false)
+  const loadingOrders = ref(false)
+  const loadingStocks = ref(false)
+
+  // Cache timestamp to avoid redundant API calls
+  const lastFetchTime = ref(0)
+  const CACHE_TTL = 30000 // 30 seconds cache
+
   // 销售数据
   const periodStats = ref<PeriodStats>({
     today: { totalAmount: 0, paidAmount: 0, unpaidAmount: 0 },
@@ -210,26 +219,59 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   // 刷新所有数据
-  async function refreshAll() {
+  async function refreshAll(force = false) {
+    // Check cache to avoid redundant API calls
+    const now = Date.now()
+    if (!force && now - lastFetchTime.value < CACHE_TTL) {
+      return // Cache is still fresh, skip refresh
+    }
+
     loading.value = true
+
+    // Fetch stats section (top cards + charts)
+    loadingStats.value = true
     try {
       await Promise.all([
         fetchSalesStats(),
         fetchOrderStats(),
         fetchPendingItems(),
-        fetchRecentOrders(),
-        fetchRecentStocks(),
       ])
       currentStock.value = await getCurrentStock()
     } catch (error) {
-      console.error('Refresh dashboard error:', error)
+      console.error('Fetch stats error:', error)
     } finally {
-      loading.value = false
+      loadingStats.value = false
     }
+
+    // Fetch recent orders (independent)
+    loadingOrders.value = true
+    try {
+      await fetchRecentOrders()
+    } catch (error) {
+      console.error('Fetch recent orders error:', error)
+    } finally {
+      loadingOrders.value = false
+    }
+
+    // Fetch recent stocks (independent)
+    loadingStocks.value = true
+    try {
+      await fetchRecentStocks()
+    } catch (error) {
+      console.error('Fetch recent stocks error:', error)
+    } finally {
+      loadingStocks.value = false
+    }
+
+    lastFetchTime.value = now
+    loading.value = false
   }
 
   return {
     loading,
+    loadingStats,
+    loadingOrders,
+    loadingStocks,
     periodStats,
     orderStats,
     currentStock,

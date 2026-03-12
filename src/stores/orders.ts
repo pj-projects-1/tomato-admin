@@ -150,15 +150,16 @@ export const useOrderStore = defineStore('orders', () => {
       // 如果是确认订单，先检查库存是否充足（给用户友好提示）
       // 实际扣减由数据库触发器完成
       if (status === 'confirmed') {
-        const { data: order, error: fetchError } = await supabase
-          .from('orders')
-          .select('total_boxes')
-          .eq('id', id)
-          .single()
+        // Fetch stock and order data in parallel for better performance
+        const [stockResult, orderResult] = await Promise.all([
+          getCurrentStock(),
+          supabase.from('orders').select('total_boxes').eq('id', id).single()
+        ])
 
-        if (fetchError) throw fetchError
+        if (orderResult.error) throw orderResult.error
 
-        const currentStock = await getCurrentStock()
+        const currentStock = stockResult
+        const order = orderResult.data
 
         // 检查库存是否充足，提前给用户友好提示
         if (currentStock < order.total_boxes) {
