@@ -48,35 +48,21 @@
             ref="tableRef"
           >
             <el-table-column type="selection" width="40" />
-            <el-table-column prop="order" label="客户/收件人" min-width="140">
+            <el-table-column prop="order" label="买家" min-width="100">
               <template #default="{ row }">
-                <div class="customer-info">
-                  <div class="buyer-row">
-                    <el-tag size="small" type="info">买家</el-tag>
-                    <span class="buyer-name">{{ row.order?.customer?.name || '-' }}</span>
-                  </div>
-                  <el-collapse-transition>
-                    <div v-show="row._showDetail" class="recipient-row">
-                      <el-tag size="small" type="success">收件</el-tag>
-                      <span>{{ row.recipient_name || row.order?.customer?.name || '-' }}</span>
-                      <el-icon v-if="row.recipient_name && row.recipient_name !== row.order?.customer?.name"
-                        class="diff-icon" color="#E6A23C">
-                        <Warning />
-                      </el-icon>
-                    </div>
-                  </el-collapse-transition>
-                </div>
+                <span>{{ row.order?.customer?.name || '-' }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="收件人" width="100">
+            <el-table-column label="收件人" min-width="100">
               <template #default="{ row }">
-                <el-button
-                  text
-                  size="small"
-                  @click="toggleDetail(row)"
-                >
-                  {{ row._showDetail ? '收起' : '展开' }}
-                </el-button>
+                <div class="recipient-info">
+                  <span>{{ row.recipient_name || row.order?.customer?.name || '-' }}</span>
+                  <el-icon v-if="row.recipient_name && row.recipient_name !== row.order?.customer?.name"
+                    class="diff-icon" color="#E6A23C" title="收件人与买家不同"
+                  >
+                    <Warning />
+                  </el-icon>
+                </div>
               </template>
             </el-table-column>
             <el-table-column prop="address" label="地址" min-width="180" show-overflow-tooltip>
@@ -733,10 +719,6 @@ onUnmounted(() => {
   }
 })
 
-// 折叠/展开详情
-function toggleDetail(row: any) {
-  row._showDetail = !row._showDetail
-}
 
 function handleSelectionChange(selection: OrderDelivery[]) {
   selectedDeliveries.value = selection
@@ -1294,6 +1276,12 @@ watch(selectedStrategy, async (newStrategy) => {
 .customer-info {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+}
+
+.recipient-info {
+  display: flex;
+  align-items: center;
   gap: 4px;
 }
 
