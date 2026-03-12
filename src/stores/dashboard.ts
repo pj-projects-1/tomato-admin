@@ -64,6 +64,25 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const recentOrders = ref<Order[]>([])
   const recentStocks = ref<Stock[]>([])
 
+  // Track when app was hidden for mobile cache invalidation
+  let hiddenAt = 0
+
+  // Set up visibility listener for mobile app resume
+  // This ensures fresh data when user returns after backgrounding the app
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now()
+      } else if (document.visibilityState === 'visible' && hiddenAt > 0) {
+        // If app was hidden longer than cache TTL, invalidate cache
+        if (Date.now() - hiddenAt > CACHE_TTL) {
+          lastFetchTime.value = 0
+        }
+        hiddenAt = 0
+      }
+    })
+  }
+
   // 获取时间范围
   function getDateRanges() {
     const now = new Date()
