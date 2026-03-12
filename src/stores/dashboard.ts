@@ -98,65 +98,48 @@ export const useDashboardStore = defineStore('dashboard', () => {
     return { today, weekStart, monthStart }
   }
 
-  // 获取销售统计
-  async function fetchSalesStats() {
-    try {
-      const { today, weekStart, monthStart } = getDateRanges()
+  // Calculate stats from a single dataset (client-side aggregation)
+  function calculateStatsFromOrders(orders: any[], startDate: Date): SalesStats {
+    const filtered = orders.filter(o => {
+      const orderDate = new Date(o.created_at)
+      return orderDate >= startDate && o.status !== 'cancelled'
+    })
 
-      // 今日销售
-      const { data: todayOrders } = await supabase
-        .from('orders')
-        .select('total_amount, paid')
-        .gte('created_at', today.toISOString())
-        .neq('status', 'cancelled')
-
-      // 本周销售
-      const { data: weekOrders } = await supabase
-        .from('orders')
-        .select('total_amount, paid')
-        .gte('created_at', weekStart.toISOString())
-        .neq('status', 'cancelled')
-
-      // 本月销售
-      const { data: monthOrders } = await supabase
-        .from('orders')
-        .select('total_amount, paid')
-        .gte('created_at', monthStart.toISOString())
-        .neq('status', 'cancelled')
-
-      const calcStats = (orders: any[] | null): SalesStats => {
-        if (!orders) return { totalAmount: 0, paidAmount: 0, unpaidAmount: 0 }
-        return orders.reduce((acc, o) => ({
-          totalAmount: acc.totalAmount + (o.total_amount || 0),
-          paidAmount: acc.paidAmount + (o.paid ? (o.total_amount || 0) : 0),
-          unpaidAmount: acc.unpaidAmount + (!o.paid ? (o.total_amount || 0) : 0),
-        }), { totalAmount: 0, paidAmount: 0, unpaidAmount: 0 })
-      }
-
-      periodStats.value = {
-        today: calcStats(todayOrders),
-        thisWeek: calcStats(weekOrders),
-        thisMonth: calcStats(monthOrders),
-      }
-    } catch (error) {
-      console.error('Fetch sales stats error:', error)
-      // Keep existing values on error
-    }
+    return filtered.reduce((acc, o) => ({
+      totalAmount: acc.totalAmount + (o.total_amount || 0),
+      paidAmount: acc.paidAmount + (o.paid ? (o.total_amount || 0) : 0),
+      unpaidAmount: acc.unpaidAmount + (!o.paid ? (o.total_amount || 0) : 0),
+    }), { totalAmount: 0, paidAmount: 0, unpaidAmount: 0 })
   }
 
-  // 获取订单统计
-  async function fetchOrderStats() {
-    const { data, error } = await supabase
+  // Consolidated fetch: Get all orders with needed fields, calculate stats locally
+  // This reduces 3 sales queries + 1 status query + 1 unpaid query = 5 queries down to 1
+  async function fetchAllOrderStats() {
+    const { today, weekStart, monthStart } = getDateRanges()
+
+    // Single query: fetch orders from this month with essential fields
+    // We need month's worth of data for all period calculations
+    const { data: orders, error } = await supabase
       .from('orders')
-      .select('status')
+      .select('id, customer_id, total_boxes, total_amount, paid, status, created_at, updated_at, customer:customers(name)')
+      .gte('created_at', monthStart.toISOString())
+      .order('created_at', { ascending: false })
 
     if (error) {
       console.error('Fetch order stats error:', error)
       return
     }
 
+    // Calculate sales stats for each period (client-side)
+    periodStats.value = {
+      today: calculateStatsFromOrders(orders || [], today),
+      thisWeek: calculateStatsFromOrders(orders || [], weekStart),
+      thisMonth: calculateStatsFromOrders(orders || [], monthStart),
+    }
+
+    // Calculate order status stats
     const stats: OrderStats = {
-      total: data?.length || 0,
+      total: orders?.length || 0,
       pending: 0,
       confirmed: 0,
       delivering: 0,
@@ -164,57 +147,39 @@ export const useDashboardStore = defineStore('dashboard', () => {
       cancelled: 0,
     }
 
-    data?.forEach(o => {
+    let unpaidCount = 0
+
+    orders?.forEach(o => {
       if (o.status in stats) {
         stats[o.status as OrderStatus]++
+      }
+      // Count unpaid (excluding cancelled)
+      if (!o.paid && o.status !== 'cancelled') {
+        unpaidCount++
       }
     })
 
     orderStats.value = stats
+    unpaidOrders.value = unpaidCount
+
+    // Use the same data for recent orders (already sorted by created_at desc)
+    // Cast via unknown since Supabase returns partial nested objects
+    recentOrders.value = (orders || []).slice(0, 5) as unknown as Order[]
   }
 
-  // 获取待处理事项
-  async function fetchPendingItems() {
-    try {
-      // 待配送数量
-      const { count: deliveryCount } = await supabase
-        .from('order_deliveries')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['pending', 'assigned'])
-
-      // 未付款订单数
-      const { count: unpaidCount } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('paid', false)
-        .neq('status', 'cancelled')
-
-      pendingDeliveries.value = deliveryCount || 0
-      unpaidOrders.value = unpaidCount || 0
-    } catch (error) {
-      console.error('Fetch pending items error:', error)
-      // Keep existing values on error
-    }
-  }
-
-  // 获取近期订单
-  async function fetchRecentOrders(limit = 5) {
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        customer:customers(name)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(limit)
+  // 获取待处理事项 (separate table, needs own query)
+  async function fetchPendingDeliveries() {
+    const { count, error } = await supabase
+      .from('order_deliveries')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['pending', 'assigned'])
 
     if (error) {
-      console.error('Fetch recent orders error:', error)
-      return []
+      console.error('Fetch pending deliveries error:', error)
+      return
     }
 
-    recentOrders.value = data || []
-    return data
+    pendingDeliveries.value = count || 0
   }
 
   // 获取近期库存流水
@@ -248,27 +213,21 @@ export const useDashboardStore = defineStore('dashboard', () => {
     loading.value = true
 
     // Fetch stats section (top cards + charts)
+    // Reduced from 5 queries to 2 queries:
+    // - fetchAllOrderStats: 1 query (replaces 3 sales + 1 status + 1 unpaid + recent orders)
+    // - fetchPendingDeliveries: 1 query (separate table)
     loadingStats.value = true
+    loadingOrders.value = true // Combined with stats now
     try {
       await Promise.all([
-        fetchSalesStats(),
-        fetchOrderStats(),
-        fetchPendingItems(),
+        fetchAllOrderStats(),
+        fetchPendingDeliveries(),
       ])
       currentStock.value = await getCurrentStock()
     } catch (error) {
       console.error('Fetch stats error:', error)
     } finally {
       loadingStats.value = false
-    }
-
-    // Fetch recent orders (independent)
-    loadingOrders.value = true
-    try {
-      await fetchRecentOrders()
-    } catch (error) {
-      console.error('Fetch recent orders error:', error)
-    } finally {
       loadingOrders.value = false
     }
 
