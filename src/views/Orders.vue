@@ -63,7 +63,7 @@
       <!-- Desktop: Table view -->
       <el-table
         ref="tableRef"
-        :data="orderStore.orders"
+        :data="desktopOrders"
         v-loading="orderStore.loading"
         style="width: 100%"
         class="desktop-table"
@@ -127,7 +127,7 @@
       <!-- Mobile: Card view -->
       <div class="mobile-card-list" v-loading="orderStore.loading">
         <div
-          v-for="row in orderStore.orders"
+          v-for="row in mobileOrders"
           :key="row.id"
           class="order-mobile-card"
           @click="viewOrder(row)"
@@ -156,6 +156,24 @@
           </div>
         </div>
         <el-empty v-if="orderStore.orders.length === 0" description="暂无订单" />
+
+        <!-- Mobile: Load More button -->
+        <div v-if="hasMoreMobile && orderStore.orders.length > 0" class="load-more-container">
+          <el-button @click="loadMore" :loading="orderStore.loading">
+            加载更多 ({{ mobileOrders.length }}/{{ totalOrders }})
+          </el-button>
+        </div>
+      </div>
+
+      <!-- Desktop: Pagination -->
+      <div v-if="totalOrders > pageSize" class="pagination-container desktop-pagination">
+        <el-pagination
+          v-model:current-page="currentPage"
+          :page-size="pageSize"
+          :total="totalOrders"
+          layout="total, prev, pager, next"
+          @current-change="handlePageChange"
+        />
       </div>
     </el-card>
 
@@ -375,6 +393,42 @@ const {
   await handleFilter()
 })
 
+// Pagination
+const currentPage = ref(1)
+const pageSize = 20
+const mobileDisplayCount = ref(pageSize)
+
+// Computed for pagination
+const totalOrders = computed(() => orderStore.orders.length)
+const totalPages = computed(() => Math.ceil(totalOrders.value / pageSize))
+
+// Desktop: show only current page
+const desktopOrders = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  const end = start + pageSize
+  return orderStore.orders.slice(start, end)
+})
+
+// Mobile: show all up to mobileDisplayCount (load more pattern)
+const mobileOrders = computed(() => {
+  return orderStore.orders.slice(0, mobileDisplayCount.value)
+})
+
+const hasMoreMobile = computed(() => mobileDisplayCount.value < totalOrders.value)
+
+function handlePageChange(page: number) {
+  currentPage.value = page
+}
+
+function loadMore() {
+  mobileDisplayCount.value += pageSize
+}
+
+function resetPagination() {
+  currentPage.value = 1
+  mobileDisplayCount.value = pageSize
+}
+
 const dialogVisible = ref(false)
 const paymentDialogVisible = ref(false)
 const submitting = ref(false)
@@ -465,6 +519,7 @@ onUnmounted(() => {
 })
 
 async function handleFilter() {
+  resetPagination()
   const params: any = {}
   if (filters.status) params.status = filters.status
   if (filters.paid !== undefined) params.paid = filters.paid
@@ -747,6 +802,27 @@ async function batchDelete() {
 .page-container {
   position: relative;
   min-height: 100%;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  border-top: 1px solid #ebeef5;
+  margin-top: 16px;
+}
+
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+}
+
+/* Hide desktop pagination on mobile */
+@media (max-width: 767px) {
+  .desktop-pagination {
+    display: none;
+  }
 }
 
 .delivery-list {

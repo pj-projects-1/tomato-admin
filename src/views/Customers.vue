@@ -41,7 +41,7 @@
     <el-card shadow="never">
       <!-- Desktop: Table view -->
       <el-table
-        :data="customerStore.customers"
+        :data="desktopCustomers"
         v-loading="customerStore.loading"
         style="width: 100%"
         class="desktop-table"
@@ -82,7 +82,7 @@
       <!-- Mobile: Card view -->
       <div class="mobile-card-list" v-loading="customerStore.loading">
         <div
-          v-for="row in customerStore.customers"
+          v-for="row in mobileCustomers"
           :key="row.id"
           class="customer-mobile-card"
           @click="showEditDialog(row)"
@@ -105,6 +105,24 @@
           </div>
         </div>
         <el-empty v-if="customerStore.customers.length === 0" description="暂无客户" />
+
+        <!-- Mobile: Load More button -->
+        <div v-if="hasMoreMobile && customerStore.customers.length > 0" class="load-more-container">
+          <el-button @click="loadMore" :loading="customerStore.loading">
+            加载更多 ({{ mobileCustomers.length }}/{{ totalCustomers }})
+          </el-button>
+        </div>
+      </div>
+
+      <!-- Desktop: Pagination -->
+      <div v-if="totalCustomers > pageSize" class="pagination-container desktop-pagination">
+        <el-pagination
+          v-model:current-page="currentPage"
+          :page-size="pageSize"
+          :total="totalCustomers"
+          layout="total, prev, pager, next"
+          @current-change="handlePageChange"
+        />
       </div>
     </el-card>
 
@@ -192,7 +210,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -220,12 +238,48 @@ const {
   await customerStore.fetchCustomers(searchKeyword.value)
 })
 
+// Pagination
+const currentPage = ref(1)
+const pageSize = 20
+const mobileDisplayCount = ref(pageSize) // For "load more" on mobile
+
 const searchKeyword = ref('')
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
 const formRef = ref<FormInstance>()
 const editingId = ref('')
+
+// Computed for pagination
+const totalCustomers = computed(() => customerStore.customers.length)
+const totalPages = computed(() => Math.ceil(totalCustomers.value / pageSize))
+
+// Desktop: show only current page
+const desktopCustomers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  const end = start + pageSize
+  return customerStore.customers.slice(start, end)
+})
+
+// Mobile: show all up to mobileDisplayCount (load more pattern)
+const mobileCustomers = computed(() => {
+  return customerStore.customers.slice(0, mobileDisplayCount.value)
+})
+
+const hasMoreMobile = computed(() => mobileDisplayCount.value < totalCustomers.value)
+
+function handlePageChange(page: number) {
+  currentPage.value = page
+}
+
+function loadMore() {
+  mobileDisplayCount.value += pageSize
+}
+
+function resetPagination() {
+  currentPage.value = 1
+  mobileDisplayCount.value = pageSize
+}
 
 const form = reactive({
   name: '',
@@ -254,6 +308,7 @@ onUnmounted(() => {
 })
 
 function handleSearch() {
+  resetPagination()
   customerStore.fetchCustomers(searchKeyword.value)
 }
 
@@ -370,6 +425,27 @@ function viewOrders(customer: Customer) {
 .page-container {
   position: relative;
   min-height: 100%;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  border-top: 1px solid #ebeef5;
+  margin-top: 16px;
+}
+
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+}
+
+/* Hide desktop pagination on mobile */
+@media (max-width: 767px) {
+  .desktop-pagination {
+    display: none;
+  }
 }
 
 .address-list {
