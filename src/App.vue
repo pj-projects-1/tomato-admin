@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+// Auth initialization moved to main.ts to ensure proper order
+// (auth must be initialized before app mounts and router guards run)
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
-
-const authStore = useAuthStore()
-
-onMounted(() => {
-  authStore.initialize()
-})
 </script>
+
 
 <template>
   <el-config-provider :locale="zhCn">

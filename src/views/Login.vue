@@ -66,6 +66,7 @@
       v-model="showRegister"
       title="注册新账号"
       width="400px"
+      class="register-dialog"
     >
       <el-form
         ref="registerFormRef"
@@ -76,9 +77,11 @@
         <el-form-item label="姓名" prop="name">
           <el-input v-model="registerForm.name" placeholder="请输入姓名" />
         </el-form-item>
+
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="registerForm.email" placeholder="请输入邮箱" />
         </el-form-item>
+
         <el-form-item label="密码" prop="password">
           <el-input
             v-model="registerForm.password"
@@ -104,6 +107,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import { forceUpdateSessionCache } from '@/router'
 
 const router = useRouter()
 const route = useRoute()
@@ -157,6 +161,9 @@ async function handleLogin() {
   try {
     const result = await authStore.signIn(form.identifier, form.password)
     if (result.success) {
+      // Force update session cache BEFORE navigation to prevent race condition
+      // This ensures the router guard sees the updated session state
+      forceUpdateSessionCache(true)
       ElMessage.success('登录成功')
       const redirect = route.query.redirect as string
       router.push(redirect || '/')
@@ -202,10 +209,12 @@ async function handleRegister() {
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  padding: 16px;
 }
 
 .login-card {
-  width: 400px;
+  width: 100%;
+  max-width: 400px;
   border-radius: 12px;
 }
 
@@ -230,5 +239,41 @@ async function handleRegister() {
   margin: 0;
   color: #909399;
   font-size: 14px;
+}
+
+/* Mobile styles */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 12px;
+  }
+
+  .login-card {
+    border-radius: 8px;
+  }
+
+  .login-logo {
+    width: 64px;
+    height: 64px;
+  }
+
+  .login-header h2 {
+    font-size: 20px;
+  }
+
+  .login-header p {
+    font-size: 12px;
+  }
+}
+
+/* Register dialog mobile styles */
+@media (max-width: 480px) {
+  .register-dialog :deep(.el-dialog) {
+    width: 90% !important;
+    margin: 10vh auto !important;
+  }
+
+  .register-dialog :deep(.el-dialog__body) {
+    padding: 16px;
+  }
 }
 </style>

@@ -60,6 +60,15 @@ let lastSessionCheck = 0
 let cachedSessionValid = false
 const SESSION_CHECK_INTERVAL = 30000 // 30 seconds
 
+/**
+ * Force update session cache - call this after successful login/registration
+ * to ensure immediate navigation works without waiting for auth state change
+ */
+export function forceUpdateSessionCache(valid: boolean) {
+  cachedSessionValid = valid
+  lastSessionCheck = Date.now()
+}
+
 // Auth guard - simplified and more efficient
 router.beforeEach(async (to, _from, next) => {
   const requiresAuth = to.meta.requiresAuth

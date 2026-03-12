@@ -9,21 +9,12 @@ import router from './router'
 import { isAuthError } from './api/supabase'
 import { checkUnsavedChanges } from './utils/errorRecovery'
 import { initErrorMonitoring } from './lib/errorMonitoring'
+import { useAuthStore } from './stores/auth'
 import 'element-plus/dist/index.css'
 import './style.css'
 
-const app = createApp(App)
-
-// Initialize error monitoring (Sentry + Fundebug)
-initErrorMonitoring(app, router)
-
-// Register Element Plus icons
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component)
-}
-
 // Global error handler for Vue errors - minimal, non-intrusive
-app.config.errorHandler = (err, _instance, info) => {
+const globalErrorHandler = (err: any, _instance: any, info: string) => {
   // Skip navigation errors (harmless, common when clicking rapidly)
   const errorMessage = (err as Error).message || ''
   if (
@@ -79,11 +70,46 @@ window.addEventListener('beforeunload', (event) => {
   }
 })
 
-app.use(createPinia())
-app.use(router)
-app.use(ElementPlus, { locale: zhCn })
+// Initialize app with proper auth initialization order
+async function initializeApp() {
+  const app = createApp(App)
+  const pinia = createPinia()
 
-app.mount('#app')
+  app.use(pinia)
+  app.use(router)
+  app.use(ElementPlus, { locale: zhCn })
+
+  // Initialize error monitoring (Sentry + Fundebug)
+  initErrorMonitoring(app, router)
+
+  // Register Element Plus icons
+  for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+    app.component(key, component)
+  }
+
+  // Set global error handler
+  app.config.errorHandler = globalErrorHandler
+
+  // IMPORTANT: Initialize auth BEFORE mounting
+  // This ensures session is loaded before router guards run
+  const authStore = useAuthStore()
+  await authStore.initialize()
+
+  // Now mount the app - auth is ready
+  app.mount('#app')
+}
+
+// Start the app
+initializeApp().catch((error) => {
+  console.error('Failed to initialize app:', error)
+  // Still try to mount even if auth init fails
+  const app = createApp(App)
+  const pinia = createPinia()
+  app.use(pinia)
+  app.use(router)
+  app.use(ElementPlus, { locale: zhCn })
+  app.mount('#app')
+})
 
 // Register service worker with update handling for mobile reliability
 if ('serviceWorker' in navigator) {
