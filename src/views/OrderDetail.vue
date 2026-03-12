@@ -45,7 +45,9 @@
             <el-descriptions-item label="创建时间">{{ formatDateTime(order.created_at) }}</el-descriptions-item>
             <el-descriptions-item label="客户">{{ order.customer?.name }}</el-descriptions-item>
             <el-descriptions-item label="微信">{{ order.customer?.wechat || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="电话">{{ order.customer?.phone || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="电话">
+              <PhoneField :phone="order.customer?.phone" />
+            </el-descriptions-item>
             <el-descriptions-item label="总箱数">{{ order.total_boxes }} 箱</el-descriptions-item>
             <el-descriptions-item label="金额">
               <span style="font-size: 18px; color: #f56c6c;">¥{{ order.total_amount || 0 }}</span>
@@ -119,7 +121,7 @@
                 </div>
                 <div class="delivery-info">
                   <p><strong>收货人：</strong>{{ delivery.recipient_name || order.customer?.name }}</p>
-                  <p><strong>电话：</strong>{{ delivery.recipient_phone || order.customer?.phone || '-' }}</p>
+                  <p><strong>电话：</strong><PhoneField :phone="delivery.recipient_phone || order.customer?.phone" /></p>
                   <p><strong>地址：</strong>{{ delivery.address }}</p>
                   <p><strong>数量：</strong>{{ delivery.quantity }} 箱</p>
                   <p v-if="delivery.delivery_note"><strong>备注：</strong>{{ delivery.delivery_note }}</p>
@@ -196,6 +198,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { useOrderStore } from '@/stores/orders'
+import PhoneField from '@/components/PhoneField.vue'
 import AddressInput from '@/components/AddressInput.vue'
 import type { Order, OrderStatus, OrderDelivery, DeliveryStatus } from '@/types'
 

@@ -48,7 +48,11 @@
       >
         <el-table-column prop="name" label="客户名称" min-width="120" />
         <el-table-column prop="wechat" label="微信" width="140" />
-        <el-table-column prop="phone" label="电话" width="130" />
+        <el-table-column prop="phone" label="电话" width="130">
+          <template #default="{ row }">
+            <PhoneField :phone="row.phone" />
+          </template>
+        </el-table-column>
         <el-table-column prop="addresses" label="地址数量" width="100" align="center">
           <template #default="{ row }">
             <el-tag size="small">{{ row.addresses?.length || 0 }} 个</el-tag>
@@ -89,7 +93,7 @@
           </div>
           <div class="card-info-row">
             <span v-if="row.wechat">微信: {{ row.wechat }}</span>
-            <span v-if="row.phone">电话: {{ row.phone }}</span>
+            <span v-if="row.phone">电话: <PhoneField :phone="row.phone" /></span>
           </div>
           <div class="card-footer" v-if="row.note">
             <span class="note">{{ row.note }}</span>
@@ -197,6 +201,7 @@ import { useCustomerStore } from '@/stores/customers'
 import { exportCustomers } from '@/api/export'
 import { usePullRefresh } from '@/composables/usePullRefresh'
 import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
+import PhoneField from '@/components/PhoneField.vue'
 import AddressInput from '@/components/AddressInput.vue'
 import type { Customer, CustomerAddress } from '@/types'
 

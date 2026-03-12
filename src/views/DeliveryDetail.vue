@@ -158,7 +158,7 @@
                   </p>
                   <p v-if="delivery.recipient_phone || delivery.order?.customer?.phone">
                     <el-icon><Phone /></el-icon>
-                    {{ delivery.recipient_phone || delivery.order?.customer?.phone }}
+                    <PhoneField :phone="delivery.recipient_phone || delivery.order?.customer?.phone" />
                     <el-button text size="small" @click="callPhone(delivery.recipient_phone || delivery.order?.customer?.phone)">
                       拨打
                     </el-button>
@@ -263,6 +263,7 @@ import dayjs from 'dayjs'
 import { useDeliveryStore } from '@/stores/deliveries'
 import { getAmapService, DEFAULT_DEPARTURE, DEFAULT_DEPARTURE_ADDRESS, type Location } from '@/api/amap'
 import { exportDeliveryTask, copyNavigationLink, generateAmapAutoNavLink, copyToClipboard } from '@/api/export'
+import PhoneField from '@/components/PhoneField.vue'
 import type { DeliveryTask, DeliveryTaskStatus, OrderDelivery, DeliveryStatus, OptimizedRoute } from '@/types'
 
 const route = useRoute()

@@ -88,7 +88,7 @@
             <el-table-column prop="quantity" label="数量" width="60" align="center" />
             <el-table-column prop="recipient_phone" label="电话" width="120">
               <template #default="{ row }">
-                {{ row.recipient_phone || row.order?.customer?.phone || '-' }}
+                <PhoneField :phone="row.recipient_phone || row.order?.customer?.phone" />
               </template>
             </el-table-column>
           </el-table>
@@ -116,7 +116,7 @@
                 <span>{{ row.address }}</span>
               </div>
               <div class="card-footer">
-                <span class="phone">{{ row.recipient_phone || row.order?.customer?.phone || '-' }}</span>
+                <PhoneField :phone="row.recipient_phone || row.order?.customer?.phone" />
                 <span v-if="row.recipient_name && row.recipient_name !== row.order?.customer?.name" class="recipient">
                   收件: {{ row.recipient_name }}
                 </span>
@@ -448,7 +448,7 @@
               <div class="delivery-address">{{ d.address }}</div>
               <div class="delivery-meta">
                 <span>{{ d.quantity }} 箱</span>
-                <span>{{ d.recipient_phone || d.order?.customer?.phone || '无电话' }}</span>
+                <PhoneField :phone="d.recipient_phone || d.order?.customer?.phone" />
               </div>
             </div>
           </div>
@@ -553,6 +553,7 @@ import { useDeliveryStore } from '@/stores/deliveries'
 import { getAmapService, DEFAULT_DEPARTURE, DEFAULT_DEPARTURE_ADDRESS, type Location } from '@/api/amap'
 import { usePullRefresh } from '@/composables/usePullRefresh'
 import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
+import PhoneField from '@/components/PhoneField.vue'
 import AddressInput from '@/components/AddressInput.vue'
 import type { DeliveryTask, DeliveryTaskStatus, OrderDelivery, OptimizedRoute, RouteStep } from '@/types'
 import type { TableInstance } from 'element-plus'
