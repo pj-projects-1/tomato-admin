@@ -19,21 +19,22 @@ export default defineConfig({
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
     },
-    // Unauthenticated desktop tests - use Chrome everywhere
+    // Desktop tests - Chrome locally, Chromium in CI
     {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        channel: 'chrome',
+        // Use installed Chrome locally, Playwright's Chromium in CI
+        ...(process.env.CI ? {} : { channel: 'chrome' }),
       },
       dependencies: ['setup'],
     },
-    // Unauthenticated mobile tests
+    // Mobile tests
     {
       name: 'mobile-chrome',
       use: {
         ...devices['Pixel 5'],
-        channel: 'chrome',
+        ...(process.env.CI ? {} : { channel: 'chrome' }),
       },
       dependencies: ['setup'],
     },
@@ -42,7 +43,7 @@ export default defineConfig({
       name: 'authenticated-chromium',
       use: {
         ...devices['Desktop Chrome'],
-        channel: 'chrome',
+        ...(process.env.CI ? {} : { channel: 'chrome' }),
         storageState: 'tests/.auth/user.json',
       },
       dependencies: ['setup'],
@@ -53,7 +54,7 @@ export default defineConfig({
       name: 'authenticated-mobile',
       use: {
         ...devices['Pixel 5'],
-        channel: 'chrome',
+        ...(process.env.CI ? {} : { channel: 'chrome' }),
         storageState: 'tests/.auth/user.json',
       },
       dependencies: ['setup'],
