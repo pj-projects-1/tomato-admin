@@ -88,10 +88,13 @@ export const useAuthStore = defineStore('auth', () => {
    * which requires a valid session
    */
   async function getEmailByUsername(username: string): Promise<string | null> {
+    // Trim whitespace and use exact match for Chinese username compatibility
+    const trimmedUsername = username.trim()
+
     const { data, error } = await supabase
       .from('profiles')
       .select('email')
-      .ilike('name', username)
+      .eq('name', trimmedUsername)
       .single()
 
     if (error || !data) {
@@ -108,11 +111,13 @@ export const useAuthStore = defineStore('auth', () => {
   async function signIn(identifier: string, password: string) {
     loading.value = true
     try {
-      // Determine if identifier is email or username
-      let email = identifier
-      if (!isEmail(identifier)) {
-        // Look up email by username (case-insensitive)
-        const foundEmail = await getEmailByUsername(identifier)
+      // Trim and determine if identifier is email or username
+      const trimmedIdentifier = identifier.trim()
+      let email = trimmedIdentifier
+
+      if (!isEmail(trimmedIdentifier)) {
+        // Look up email by username
+        const foundEmail = await getEmailByUsername(trimmedIdentifier)
         if (!foundEmail) {
           return { success: false, error: '用户名或密码错误' }
         }
