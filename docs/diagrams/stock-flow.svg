@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 180">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#409EFF"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="400" y="25" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="16" font-weight="bold" fill="#303133">
+    库存流转流程
+  </text>
+
+  <!-- Center: Stock Box -->
+  <g transform="translate(320, 60)">
+    <rect x="0" y="0" width="160" height="80" rx="10" fill="#409EFF" fill-opacity="0.15" stroke="#409EFF" stroke-width="2"/>
+    <text x="80" y="35" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="18" fill="#409EFF">📦 库存</text>
+    <text x="80" y="60" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12" fill="#909399">当前库存余额</text>
+  </g>
+
+  <!-- Inbound Arrow -->
+  <path d="M 150 100 L 315 100" stroke="#67C23A" stroke-width="3" marker-end="url(#arrow)"/>
+  <defs>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#67C23A"/>
+    </marker>
+  </defs>
+
+  <!-- Inbound Box -->
+  <g transform="translate(20, 70)">
+    <rect x="0" y="0" width="120" height="60" rx="8" fill="#67C23A" fill-opacity="0.2" stroke="#67C23A" stroke-width="2"/>
+    <text x="60" y="25" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#67C23A">➕ 入库</text>
+    <text x="60" y="45" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="10" fill="#909399">采摘/进货</text>
+  </g>
+
+  <!-- Outbound Arrow -->
+  <path d="M 485 100 L 650 100" stroke="#F56C6C" stroke-width="3" marker-end="url(#arrow)"/>
+  <defs>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#F56C6C"/>
+    </marker>
+  </defs>
+
+  <!-- Outbound Box -->
+  <g transform="translate(660, 70)">
+    <rect x="0" y="0" width="120" height="60" rx="8" fill="#F56C6C" fill-opacity="0.2" stroke="#F56C6C" stroke-width="2"/>
+    <text x="60" y="25" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" fill="#F56C6C">➖ 出库</text>
+    <text x="60" y="45" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="10" fill="#909399">订单确认自动</text>
+  </g>
+
+  <!-- Labels -->
+  <text x="230" y="85" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="11" fill="#67C23A">库存增加</text>
+  <text x="570" y="85" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="11" fill="#F56C6C">库存减少</text>
+
+  <!-- Adjust Box (below) -->
+  <g transform="translate(340, 155)">
+    <rect x="0" y="0" width="100" height="30" rx="4" fill="#E6A23C" fill-opacity="0.2" stroke="#E6A23C" stroke-width="1.5"/>
+    <text x="50" y="20" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="11" fill="#E6A23C">⚙️ 盘点调整</text>
+  </g>
+  <path d="M 400 140 L 400 155" stroke="#E6A23C" stroke-width="1.5" stroke-dasharray="3"/>
+</svg>

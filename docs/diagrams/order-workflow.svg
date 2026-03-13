@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200">
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#409EFF"/>
+    </marker>
+    <linearGradient id="boxGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#409EFF;stop-opacity:0.2"/>
+      <stop offset="100%" style="stop-color:#409EFF;stop-opacity:0.1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Title -->
+  <text x="400" y="25" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="16" font-weight="bold" fill="#303133">
+    订单处理流程
+  </text>
+
+  <!-- Step 1: 创建订单 -->
+  <g transform="translate(50, 60)">
+    <rect x="0" y="0" width="120" height="60" rx="8" fill="url(#boxGradient)" stroke="#409EFF" stroke-width="2"/>
+    <text x="60" y="28" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#303133">创建订单</text>
+    <text x="60" y="45" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="10" fill="#909399">待确认</text>
+  </g>
+
+  <!-- Arrow 1 -->
+  <line x1="175" y1="90" x2="225" y2="90" stroke="#409EFF" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 2: 确认订单 -->
+  <g transform="translate(230, 60)">
+    <rect x="0" y="0" width="120" height="60" rx="8" fill="url(#boxGradient)" stroke="#409EFF" stroke-width="2"/>
+    <text x="60" y="28" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#303133">确认订单</text>
+    <text x="60" y="45" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="10" fill="#909399">自动扣库存</text>
+  </g>
+
+  <!-- Arrow 2 -->
+  <line x1="355" y1="90" x2="405" y2="90" stroke="#409EFF" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 3: 配送中 -->
+  <g transform="translate(410, 60)">
+    <rect x="0" y="0" width="120" height="60" rx="8" fill="url(#boxGradient)" stroke="#67C23A" stroke-width="2"/>
+    <text x="60" y="28" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#303133">配送中</text>
+    <text x="60" y="45" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="10" fill="#909399">路线规划</text>
+  </g>
+
+  <!-- Arrow 3 -->
+  <line x1="535" y1="90" x2="585" y2="90" stroke="#67C23A" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <defs>
+    <marker id="arrowhead2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#67C23A"/>
+    </marker>
+  </defs>
+
+  <!-- Step 4: 已完成 -->
+  <g transform="translate(590, 60)">
+    <rect x="0" y="0" width="120" height="60" rx="8" fill="#67C23A" fill-opacity="0.2" stroke="#67C23A" stroke-width="2"/>
+    <text x="60" y="28" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" fill="#303133">已完成</text>
+    <text x="60" y="45" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="10" fill="#67C23A">✓</text>
+  </g>
+
+  <!-- Payment Branch -->
+  <g transform="translate(230, 150)">
+    <rect x="0" y="0" width="120" height="40" rx="6" fill="#E6A23C" fill-opacity="0.2" stroke="#E6A23C" stroke-width="1.5"/>
+    <text x="60" y="25" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12" fill="#303133">💰 收款</text>
+  </g>
+
+  <!-- Payment arrow -->
+  <path d="M 290 120 L 290 145" stroke="#E6A23C" stroke-width="1.5" fill="none" stroke-dasharray="4"/>
+
+  <!-- Cancel Branch -->
+  <g transform="translate(50, 150)">
+    <rect x="0" y="0" width="120" height="40" rx="6" fill="#F56C6C" fill-opacity="0.2" stroke="#F56C6C" stroke-width="1.5"/>
+    <text x="60" y="25" text-anchor="middle" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12" fill="#303133">✕ 取消/删除</text>
+  </g>
+
+  <!-- Cancel arrow -->
+  <path d="M 110 120 L 110 145" stroke="#F56C6C" stroke-width="1.5" fill="none" stroke-dasharray="4"/>
+</svg>

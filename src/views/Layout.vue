@@ -1,0 +1,318 @@
+<template>
+  <el-container class="layout-container">
+    <!-- Desktop Sidebar -->
+    <el-aside v-if="!isMobile" :width="isCollapse ? '64px' : '220px'" class="sidebar">
+      <div class="logo">
+        <img src="/Logo.png" alt="四月红番天" class="logo-img" />
+        <span v-show="!isCollapse" class="logo-text">四月红番天</span>
+      </div>
+      <el-menu
+        :default-active="activeMenu"
+        :collapse="isCollapse"
+        router
+        background-color="#304156"
+        text-color="#bfcbd9"
+        active-text-color="#409eff"
+      >
+        <el-menu-item index="/">
+          <el-icon><DataBoard /></el-icon>
+          <template #title>仪表盘</template>
+        </el-menu-item>
+        <el-menu-item index="/customers">
+          <el-icon><User /></el-icon>
+          <template #title>客户管理</template>
+        </el-menu-item>
+        <el-menu-item index="/orders">
+          <el-icon><Document /></el-icon>
+          <template #title>订单管理</template>
+        </el-menu-item>
+        <el-menu-item index="/stocks">
+          <el-icon><Box /></el-icon>
+          <template #title>库存管理</template>
+        </el-menu-item>
+        <el-menu-item index="/deliveries">
+          <el-icon><Van /></el-icon>
+          <template #title>配送规划</template>
+        </el-menu-item>
+      </el-menu>
+    </el-aside>
+
+    <!-- Mobile Drawer -->
+    <el-drawer
+      v-model="drawerVisible"
+      direction="ltr"
+      :with-header="false"
+      size="220px"
+      class="mobile-drawer"
+    >
+      <div class="sidebar drawer-sidebar">
+        <div class="logo">
+          <img src="/Logo.png" alt="四月红番天" class="logo-img" />
+          <span class="logo-text">四月红番天</span>
+        </div>
+        <el-menu
+          :default-active="activeMenu"
+          router
+          background-color="#304156"
+          text-color="#bfcbd9"
+          active-text-color="#409eff"
+          @select="drawerVisible = false"
+        >
+          <el-menu-item index="/">
+            <el-icon><DataBoard /></el-icon>
+            <template #title>仪表盘</template>
+          </el-menu-item>
+          <el-menu-item index="/customers">
+            <el-icon><User /></el-icon>
+            <template #title>客户管理</template>
+          </el-menu-item>
+          <el-menu-item index="/orders">
+            <el-icon><Document /></el-icon>
+            <template #title>订单管理</template>
+          </el-menu-item>
+          <el-menu-item index="/stocks">
+            <el-icon><Box /></el-icon>
+            <template #title>库存管理</template>
+          </el-menu-item>
+          <el-menu-item index="/deliveries">
+            <el-icon><Van /></el-icon>
+            <template #title>配送规划</template>
+          </el-menu-item>
+        </el-menu>
+      </div>
+    </el-drawer>
+
+    <el-container>
+      <el-header class="header">
+        <div class="header-left">
+          <!-- Mobile hamburger menu -->
+          <el-icon
+            v-if="isMobile"
+            class="hamburger-btn"
+            @click="drawerVisible = true"
+          >
+            <Expand />
+          </el-icon>
+          <!-- Desktop collapse button -->
+          <el-icon
+            v-else
+            class="collapse-btn"
+            @click="isCollapse = !isCollapse"
+          >
+            <component :is="isCollapse ? 'Expand' : 'Fold'" />
+          </el-icon>
+        </div>
+        <div class="header-right">
+          <el-dropdown @command="handleCommand">
+            <span class="user-info">
+              <el-avatar :size="32" icon="UserFilled" />
+              <span class="user-name">{{ userName }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item disabled>
+                  <el-tag :type="isAdmin ? 'danger' : 'info'" size="small">
+                    {{ isAdmin ? '管理员' : '员工' }}
+                  </el-tag>
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
+                  <el-icon><SwitchButton /></el-icon>
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </el-header>
+
+      <el-main class="main-content">
+        <router-view />
+      </el-main>
+    </el-container>
+  </el-container>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessageBox, ElMessage } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
+
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+
+const isCollapse = ref(false)
+const isMobile = ref(false)
+const drawerVisible = ref(false)
+
+const MOBILE_BREAKPOINT = 768
+
+function checkMobile() {
+  isMobile.value = window.innerWidth < MOBILE_BREAKPOINT
+  // Auto-collapse sidebar on tablet
+  if (window.innerWidth < 1024 && window.innerWidth >= MOBILE_BREAKPOINT) {
+    isCollapse.value = true
+  }
+}
+
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+})
+
+const activeMenu = computed(() => route.path)
+const userName = computed(() => authStore.userName)
+const isAdmin = computed(() => authStore.isAdmin)
+
+async function handleCommand(command: string) {
+  if (command === 'logout') {
+    try {
+      await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      })
+      await authStore.signOut()
+      router.push('/login')
+    } catch (e: any) {
+      if (e === 'cancel' || e === 'close') return
+      console.error('Logout error:', e)
+      ElMessage.error(e.message || '退出失败')
+    }
+  }
+}
+</script>
+
+<style scoped>
+.layout-container {
+  height: 100vh;
+}
+
+.sidebar {
+  background-color: #304156;
+  transition: width 0.3s;
+  overflow: hidden;
+}
+
+.logo {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  border-bottom: 1px solid #3a4a5d;
+  padding: 0 10px;
+}
+
+.logo-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.logo-text {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.el-menu {
+  border-right: none;
+}
+
+.header {
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.collapse-btn {
+  font-size: 20px;
+  cursor: pointer;
+  color: #606266;
+}
+
+.collapse-btn:hover {
+  color: #409eff;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.user-name {
+  font-size: 14px;
+  color: #303133;
+}
+
+.main-content {
+  background-color: #f5f7fa;
+  overflow-y: auto;
+}
+
+/* Mobile styles */
+.hamburger-btn {
+  font-size: 28px;
+  cursor: pointer;
+  color: #606266;
+  padding: 10px;
+  min-width: 48px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.hamburger-btn:hover {
+  color: #409eff;
+  background-color: rgba(64, 158, 255, 0.1);
+}
+
+.drawer-sidebar {
+  height: 100vh;
+}
+
+/* Mobile drawer overrides */
+:deep(.mobile-drawer .el-drawer__body) {
+  padding: 0;
+  background-color: #304156;
+}
+
+/* Mobile header adjustments */
+@media (max-width: 767px) {
+  .header {
+    padding: 0 12px;
+  }
+
+  .user-name {
+    display: none;
+  }
+}
+</style>
