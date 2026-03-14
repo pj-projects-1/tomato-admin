@@ -23,8 +23,8 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
     initError.value = null
     try {
-      // Reduced timeout for faster failure - 5 seconds
-      const timeoutMs = 5000
+      // Timeout for auth initialization - 10 seconds
+      const timeoutMs = 10000
       const timeoutPromise = new Promise<null>((_, reject) => {
         setTimeout(() => reject(new Error('网络连接超时，请检查网络后重试')), timeoutMs)
       })

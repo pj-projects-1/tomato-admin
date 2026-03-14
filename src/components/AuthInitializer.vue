@@ -6,7 +6,8 @@
         <div class="text">正在验证身份...</div>
       </div>
     </div>
-    <div v-else-if="showError" class="auth-initializer">
+    <!-- Error state only shown on protected routes, not on login page -->
+    <div v-else-if="showError && !isPublicRoute" class="auth-initializer">
       <div class="auth-error">
         <el-icon :size="48" color="#f56c6c"><WarningFilled /></el-icon>
         <div class="error-title">连接失败</div>
@@ -20,13 +21,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const retrying = ref(false)
 
-// Show loading for a brief moment to avoid flash
+// Show loading while auth is initializing
 const showLoading = computed(() => {
   return !authStore.initialized && !authStore.initError
 })
@@ -35,16 +38,18 @@ const showError = computed(() => {
   return authStore.initError && !authStore.isAuthenticated
 })
 
+// Check if current route is public (login, reset-password)
+const isPublicRoute = computed(() => {
+  const publicRoutes = ['/login', '/reset-password']
+  return publicRoutes.includes(route.path)
+})
+
 async function handleRetry() {
   retrying.value = true
   await authStore.retry()
   retrying.value = false
 }
-
-onMounted(() => {
-  // Auth might already be initialized when this mounts
-  // That's fine - we just won't show the loading state
-})
+</script>
 </script>
 
 <style scoped>

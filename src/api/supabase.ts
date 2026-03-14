@@ -15,7 +15,7 @@ let refreshPromise: Promise<void> | null = null
 /**
  * Custom fetch with timeout and retry
  */
-function createTimeoutFetch(timeoutMs: number = 8000) {
+function createTimeoutFetch(timeoutMs: number = 15000) {
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
@@ -45,7 +45,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     headers: {
       'x-client-info': 'tomato-admin',
     },
-    fetch: createTimeoutFetch(8000),
+    fetch: createTimeoutFetch(15000),
   },
   db: {
     schema: 'public',
