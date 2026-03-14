@@ -476,7 +476,7 @@ async function handleUpdateName() {
 
     // Update local state
     const userIndex = users.value.findIndex(u => u.id === editingUserId.value)
-    if (userIndex !== -1) {
+    if (userIndex !== -1 && users.value[userIndex]) {
       users.value[userIndex].name = editNameForm.name.trim()
     }
 
@@ -506,7 +506,7 @@ async function handleRoleChange(user: Profile, newRole: 'admin' | 'staff') {
     ElMessage.warning('无法修改自己的角色')
     // Revert the change
     const userIndex = users.value.findIndex(u => u.id === user.id)
-    if (userIndex !== -1) {
+    if (userIndex !== -1 && users.value[userIndex]) {
       users.value[userIndex].role = user.role
     }
     return
@@ -541,7 +541,7 @@ async function updateRole(userId: string, newRole: 'admin' | 'staff') {
 
     // Update local state
     const userIndex = users.value.findIndex(u => u.id === userId)
-    if (userIndex !== -1) {
+    if (userIndex !== -1 && users.value[userIndex]) {
       users.value[userIndex].role = newRole
     }
 
