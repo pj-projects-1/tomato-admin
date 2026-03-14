@@ -50,7 +50,6 @@ async function handleRetry() {
   retrying.value = false
 }
 </script>
-</script>
 
 <style scoped>
 .auth-initializer {
