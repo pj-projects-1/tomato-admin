@@ -7,6 +7,21 @@ import { supabase } from './supabase'
 import type { ExpressCompany, ExpressStatus, ExpressTrackingEvent } from '@/types'
 
 /**
+ * App identifier for Kuaidi100 mobile API
+ * Can be any English name, no approval needed
+ */
+const KUAIDI100_CONAME = 'hongfantian'
+
+/**
+ * Check if current device is mobile
+ */
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    || window.innerWidth < 768
+}
+
+/**
  * Fetch all active express companies
  */
 export async function fetchExpressCompanies(): Promise<ExpressCompany[]> {
@@ -110,17 +125,40 @@ export const EXPRESS_COMPANY_CODES: Record<string, string> = {
 /**
  * Generate tracking URL for an express delivery
  * Uses Kuaidi100 as unified tracking service
+ * Automatically detects mobile devices and returns mobile-optimized URL
  *
  * @param companyName - Express company name (e.g., "顺丰速运")
  * @param trackingNumber - Tracking number
+ * @param returnUrl - Optional return URL for mobile users (defaults to current page)
  * @returns Kuaidi100 tracking URL
  */
-export function getTrackingUrl(companyName: string | null | undefined, trackingNumber: string): string {
+export function getTrackingUrl(
+  companyName: string | null | undefined,
+  trackingNumber: string,
+  returnUrl?: string
+): string {
   if (!trackingNumber) return ''
 
-  // Get company code, fallback to auto-detect via Kuaidi100
+  // Get company code, fallback to empty for auto-detect
   const companyCode = companyName ? EXPRESS_COMPANY_CODES[companyName] : ''
 
+  if (isMobileDevice()) {
+    // Mobile URL format with callback support
+    const callbackUrl = returnUrl || (typeof window !== 'undefined' ? window.location.href : '')
+    const encodedCallback = callbackUrl ? encodeURIComponent(callbackUrl) : ''
+
+    let url = `https://m.kuaidi100.com/app/query/?coname=${KUAIDI100_CONAME}`
+    if (companyCode) {
+      url += `&com=${companyCode}`
+    }
+    url += `&nu=${trackingNumber}`
+    if (encodedCallback) {
+      url += `&callbackurl=${encodedCallback}`
+    }
+    return url
+  }
+
+  // PC/Desktop URL format
   if (companyCode) {
     return `https://www.kuaidi100.com/chaxun?com=${companyCode}&nu=${trackingNumber}`
   }
