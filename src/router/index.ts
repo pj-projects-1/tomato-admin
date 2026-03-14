@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { supabase, ensureValidSession } from '@/api/supabase'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -61,6 +62,39 @@ let cachedSessionValid = false
 const SESSION_CHECK_INTERVAL = 30000 // 30 seconds
 
 /**
+ * Wait for auth store to initialize with timeout
+ */
+function waitForAuthInit(timeoutMs = 3000): Promise<void> {
+  return new Promise((resolve) => {
+    const authStore = useAuthStore()
+    if (authStore.initialized) {
+      resolve()
+      return
+    }
+
+    const startTime = Date.now()
+    const checkInterval = 100
+
+    const check = () => {
+      if (authStore.initialized) {
+        resolve()
+        return
+      }
+
+      if (Date.now() - startTime > timeoutMs) {
+        // Timeout reached - proceed anyway, auth will catch up
+        resolve()
+        return
+      }
+
+      setTimeout(check, checkInterval)
+    }
+
+    check()
+  })
+}
+
+/**
  * Force update session cache - call this after successful login/registration
  * to ensure immediate navigation works without waiting for auth state change
  */
@@ -79,6 +113,9 @@ router.beforeEach(async (to, _from, next) => {
     next()
     return
   }
+
+  // Wait for auth to initialize (with timeout)
+  await waitForAuthInit()
 
   // Use cached result if recent
   const now = Date.now()

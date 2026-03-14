@@ -11,6 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
   const session = ref<Session | null>(null)
   const loading = ref(false)
   const initialized = ref(false)
+  const initError = ref<string | null>(null)
 
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => profile.value?.role === 'admin')
@@ -20,11 +21,12 @@ export const useAuthStore = defineStore('auth', () => {
     if (initialized.value) return
 
     loading.value = true
+    initError.value = null
     try {
-      // Set a timeout for auth initialization to avoid hanging on slow networks
-      const timeoutMs = 10000 // 10 seconds
+      // Reduced timeout for faster failure - 5 seconds
+      const timeoutMs = 5000
       const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error('Auth initialization timeout')), timeoutMs)
+        setTimeout(() => reject(new Error('网络连接超时，请检查网络后重试')), timeoutMs)
       })
 
       const sessionPromise = supabase.auth.getSession()
@@ -32,7 +34,11 @@ export const useAuthStore = defineStore('auth', () => {
       const { data: { session: currentSession } } = await Promise.race([
         sessionPromise,
         timeoutPromise.then(() => ({ data: { session: null }, error: null }))
-      ]).catch(() => ({ data: { session: null }, error: null }))
+      ]).catch((err) => {
+        console.error('Auth initialization timeout or error:', err)
+        initError.value = err instanceof Error ? err.message : '初始化失败'
+        return { data: { session: null }, error: null }
+      })
 
       if (currentSession) {
         session.value = currentSession
@@ -82,11 +88,21 @@ export const useAuthStore = defineStore('auth', () => {
       initialized.value = true
     } catch (error) {
       console.error('Auth initialization error:', error)
+      initError.value = error instanceof Error ? error.message : '初始化失败'
       // Still mark as initialized so app doesn't hang
       initialized.value = true
     } finally {
       loading.value = false
     }
+  }
+
+  /**
+   * Retry auth initialization after failure
+   */
+  async function retry() {
+    initialized.value = false
+    initError.value = null
+    await initialize()
   }
 
   /**
@@ -259,10 +275,12 @@ export const useAuthStore = defineStore('auth', () => {
     session,
     loading,
     initialized,
+    initError,
     isAuthenticated,
     isAdmin,
     userName,
     initialize,
+    retry,
     signIn,
     signUp,
     signOut,

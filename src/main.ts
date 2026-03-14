@@ -72,8 +72,8 @@ window.addEventListener('beforeunload', (event) => {
   }
 })
 
-// Initialize app with proper auth initialization order
-async function initializeApp() {
+// Initialize app - mount immediately, auth runs in background
+function initializeApp() {
   const app = createApp(App)
   const pinia = createPinia()
 
@@ -93,13 +93,16 @@ async function initializeApp() {
   // Set global error handler
   app.config.errorHandler = globalErrorHandler
 
-  // IMPORTANT: Initialize auth BEFORE mounting
-  // This ensures session is loaded before router guards run
-  const authStore = useAuthStore()
-  await authStore.initialize()
-
-  // Now mount the app - auth is ready
+  // Mount app immediately - don't wait for auth
+  // This improves perceived performance and allows immediate interaction
   app.mount('#app')
+
+  // Initialize auth in background - router guards will wait for it
+  const authStore = useAuthStore()
+  authStore.initialize().catch((error) => {
+    console.error('Auth initialization failed:', error)
+    // Auth store handles the error state internally
+  })
 
   // Remove loading indicator after mount
   const loadingEl = document.getElementById('app-loading')
@@ -109,22 +112,6 @@ async function initializeApp() {
 }
 
 // Start the app
-initializeApp().catch((error) => {
-  console.error('Failed to initialize app:', error)
-  // Still try to mount even if auth init fails
-  const app = createApp(App)
-  const pinia = createPinia()
-  app.use(pinia)
-  app.use(router)
-  app.use(ElementPlus, { locale: zhCn })
-  app.use(VueVirtualScroller)
-  app.mount('#app')
-
-  // Remove loading indicator after mount
-  const loadingEl = document.getElementById('app-loading')
-  if (loadingEl) {
-    loadingEl.style.display = 'none'
-  }
-})
+initializeApp()
 
 // Note: Service worker is handled by vite-plugin-pwa, no manual registration needed

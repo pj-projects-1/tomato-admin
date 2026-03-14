@@ -35,6 +35,7 @@ export interface CustomerAddress {
 
 export interface Order {
   id: string
+  order_number?: string
   customer_id: string
   customer?: Customer
   total_boxes: number

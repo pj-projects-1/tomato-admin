@@ -85,16 +85,18 @@
             {{ row.storage_date || '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="order" label="关联订单" width="90">
+        <el-table-column prop="order" label="关联订单" width="110">
           <template #default="{ row }">
-            <el-button
-              v-if="row.order"
-              text
-              type="primary"
-              @click="viewOrder(row.order_id)"
-            >
-              查看
-            </el-button>
+            <div v-if="row.order" class="order-cell">
+              <el-button
+                text
+                :type="row.order.status === 'cancelled' ? 'info' : 'primary'"
+                @click="viewOrder(row.order_id)"
+              >
+                查看
+              </el-button>
+              <el-tag v-if="row.order.status === 'cancelled'" type="info" size="small">已取消</el-tag>
+            </div>
             <span v-else>-</span>
           </template>
         </el-table-column>
@@ -136,7 +138,15 @@
           <div class="card-footer">
             <span class="time">{{ formatDateTime(row.created_at) }}</span>
             <div class="card-actions">
-              <el-button v-if="row.order && row.order_id" size="small" type="primary" link @click="viewOrder(row.order_id)">订单</el-button>
+              <template v-if="row.order && row.order_id">
+                <el-button
+                  size="small"
+                  :type="row.order.status === 'cancelled' ? 'info' : 'primary'"
+                  link
+                  @click="viewOrder(row.order_id)"
+                >订单</el-button>
+                <el-tag v-if="row.order.status === 'cancelled'" type="info" size="small">已取消</el-tag>
+              </template>
               <el-button size="small" link @click="showRecordEditDialog(row)">编辑</el-button>
             </div>
           </div>
@@ -674,6 +684,12 @@ function viewOrder(orderId: string) {
 </script>
 
 <style scoped>
+.order-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .page-container {
   position: relative;
   min-height: 100%;

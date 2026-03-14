@@ -20,10 +20,21 @@
           <el-icon><Download /></el-icon>
           <span class="btn-text">导出清单</span>
         </el-button>
-        <el-button type="primary" @click="handleCopyNavLink" :disabled="!hasValidLocations">
-          <el-icon><Link /></el-icon>
-          <span class="btn-text">导航链接</span>
-        </el-button>
+        <el-dropdown trigger="click" :disabled="!hasValidLocations" @click="startNavigation">
+          <el-button type="primary" :disabled="!hasValidLocations">
+            <el-icon><Navigation /></el-icon>
+            <span class="btn-text">开始导航</span>
+            <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="handleCopyNavLink">
+                <el-icon><CopyDocument /></el-icon>
+                复制导航链接
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
       <div class="action-group" v-if="task.status === 'planning'">
         <el-button @click="showAdjustRouteDialog">
@@ -687,6 +698,25 @@ async function handleCopyNavLink() {
     }
   } else {
     ElMessage.error('复制失败，请重试')
+  }
+}
+
+/**
+ * Start navigation - opens Amap with the route
+ * On mobile: opens Amap app directly
+ * On desktop: opens Amap web
+ */
+function startNavigation() {
+  if (!task.value || !hasValidLocations.value) {
+    ElMessage.warning('配送点缺少坐标信息')
+    return
+  }
+
+  const navLink = generateAmapAutoNavLink(departure.value, destination.value, sortedDeliveries.value)
+  if (navLink) {
+    window.open(navLink, '_blank')
+  } else {
+    ElMessage.warning('无法生成导航链接')
   }
 }
 

@@ -1,11 +1,15 @@
 <script setup lang="ts">
-// Auth initialization moved to main.ts to ensure proper order
-// (auth must be initialized before app mounts and router guards run)
+// Auth initialization runs in background via main.ts
+// This component shows loading/error state while auth initializes
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import AuthInitializer from '@/components/AuthInitializer.vue'
 </script>
 
 <template>
   <el-config-provider :locale="zhCn">
+    <!-- Show auth loading/error overlay -->
+    <AuthInitializer />
+
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
         <component :is="Component" />

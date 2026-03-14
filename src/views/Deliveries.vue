@@ -12,16 +12,19 @@
       <div class="header-top-row">
         <!-- Desktop: Buttons row -->
         <div class="location-buttons">
-          <el-button @click="showDepartureDialog">
+          <el-button @click="showDepartureDialog" :title="departure.address ? '出发地: ' + departure.address : '设置出发地'">
             <el-icon><Location /></el-icon>
-            <span>出发地{{ departure.address ? ': ' + departure.address : '' }}</span>
+            <span class="btn-text-full">出发地{{ departure.address ? ': ' + departure.address : '' }}</span>
+            <span class="btn-text-short">出发地</span>
           </el-button>
-          <el-button @click="showDestinationDialog" :disabled="isRoundTrip">
+          <el-button @click="showDestinationDialog" :disabled="isRoundTrip" :title="!isRoundTrip && destination.address ? '结束地: ' + destination.address : '设置结束地'">
             <el-icon><Flag /></el-icon>
-            <span>结束地{{ !isRoundTrip && destination.address ? ': ' + destination.address : '' }}</span>
+            <span class="btn-text-full">结束地{{ !isRoundTrip && destination.address ? ': ' + destination.address : '' }}</span>
+            <span class="btn-text-short">结束地</span>
           </el-button>
           <el-checkbox v-model="isRoundTrip" class="roundtrip-checkbox">
-            环形
+            <span class="btn-text-full">环形</span>
+            <span class="btn-text-short">环形</span>
           </el-checkbox>
           <el-button
             type="primary"
@@ -29,14 +32,16 @@
             :disabled="selectedDeliveries.length === 0 || !isLocationsValid"
           >
             <el-icon><Plus /></el-icon>
-            创建任务 ({{ selectedDeliveries.length }})
+            <span class="btn-text-full">创建任务 ({{ selectedDeliveries.length }})</span>
+            <span class="btn-text-short">创建({{ selectedDeliveries.length }})</span>
           </el-button>
           <el-button
             @click="showExportDialog"
             :disabled="deliveryStore.deliveryTasks.length === 0"
           >
             <el-icon><Download /></el-icon>
-            导出
+            <span class="btn-text-full">导出</span>
+            <span class="btn-text-short">导出</span>
           </el-button>
         </div>
       </div>
@@ -430,7 +435,13 @@
 
             <el-table-column prop="tracking_number" label="运单号" min-width="120">
               <template #default="{ row }">
-                <span v-if="row.tracking_number">{{ row.tracking_number }}</span>
+                <a
+                  v-if="row.tracking_number"
+                  :href="getTrackingUrl(row.express_company, row.tracking_number)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="tracking-link"
+                >{{ row.tracking_number }}</a>
                 <span v-else style="color: #909399;">未填写</span>
               </template>
             </el-table-column>
@@ -501,7 +512,13 @@
               </div>
               <div class="card-info">
                 <span v-if="row.express_company">{{ getCompanyName(row.express_company) }}</span>
-                <span v-if="row.tracking_number" class="tracking-num">{{ row.tracking_number }}</span>
+                <a
+                  v-if="row.tracking_number"
+                  :href="getTrackingUrl(row.express_company, row.tracking_number)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="tracking-link tracking-num"
+                >{{ row.tracking_number }}</a>
               </div>
               <div class="card-address">{{ row.address }}</div>
               <div class="card-footer">
@@ -808,6 +825,7 @@ import {
   getExpressBgColor,
   updateExpressStatus,
   getNextExpressStatus,
+  getTrackingUrl,
 } from '@/api/express'
 import { usePullRefresh } from '@/composables/usePullRefresh'
 import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
@@ -1725,6 +1743,14 @@ function getCompanyName(code: string): string {
   flex-wrap: nowrap;
 }
 
+/* Desktop: show full text, hide short text */
+.location-buttons .btn-text-short {
+  display: none;
+}
+.location-buttons .btn-text-full {
+  display: inline;
+}
+
 .location-buttons .el-button {
   white-space: nowrap;
   max-width: 180px;
@@ -1977,40 +2003,34 @@ function getCompanyName(code: string): string {
   /* Mobile header adjustments */
   .header-top-row {
     width: 100%;
-    overflow-x: auto;
+    overflow-x: visible;
   }
 
   .location-buttons {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 6px;
-    min-width: max-content;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  /* Show short text on mobile, hide full text */
+  .location-buttons .btn-text-short {
+    display: inline;
+  }
+  .location-buttons .btn-text-full {
+    display: none;
   }
 
   .location-buttons .el-button {
-    padding: 6px 10px;
+    padding: 6px 8px;
     font-size: 12px;
-    max-width: 100px;
-  }
-
-  .location-buttons .el-button span {
-    display: inline-block;
-    max-width: 70px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .location-buttons .el-button--primary {
-    max-width: none;
-  }
-
-  .location-buttons .el-button--primary span {
-    max-width: none;
+    flex-shrink: 0;
   }
 
   .roundtrip-checkbox {
-    margin: 0 6px;
+    margin: 0 4px;
     font-size: 12px;
+    flex-shrink: 0;
   }
 
   .roundtrip-checkbox :deep(.el-checkbox__label) {
@@ -2225,6 +2245,16 @@ function getCompanyName(code: string): string {
 .express-mobile-card .tracking-num {
   color: #409eff;
   font-family: monospace;
+}
+
+.tracking-link {
+  color: #409eff;
+  text-decoration: none;
+  font-family: monospace;
+}
+
+.tracking-link:hover {
+  text-decoration: underline;
 }
 
 .express-mobile-card .card-address {

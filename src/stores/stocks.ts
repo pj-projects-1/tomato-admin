@@ -15,7 +15,7 @@ export const useStockStore = defineStore('stocks', () => {
         .from('stocks')
         .select(`
           *,
-          order:orders(id, total_boxes)
+          order:orders(id, total_boxes, status)
         `)
         .order('created_at', { ascending: false })
         .limit(limit)
@@ -70,7 +70,7 @@ export const useStockStore = defineStore('stocks', () => {
         })
         .select(`
           *,
-          order:orders(id, total_boxes)
+          order:orders(id, total_boxes, status)
         `)
         .single()
 
@@ -109,7 +109,7 @@ export const useStockStore = defineStore('stocks', () => {
         })
         .select(`
           *,
-          order:orders(id, total_boxes)
+          order:orders(id, total_boxes, status)
         `)
         .single()
 
@@ -143,7 +143,7 @@ export const useStockStore = defineStore('stocks', () => {
         })
         .select(`
           *,
-          order:orders(id, total_boxes)
+          order:orders(id, total_boxes, status)
         `)
         .single()
 

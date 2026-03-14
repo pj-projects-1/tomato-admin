@@ -1,10 +1,13 @@
 <template>
   <div class="page-container" v-loading="loading">
     <div class="page-header">
-      <el-button @click="$router.back()">
-        <el-icon><ArrowLeft /></el-icon>
-        返回
-      </el-button>
+      <div class="header-left">
+        <el-button @click="$router.back()">
+          <el-icon><ArrowLeft /></el-icon>
+          返回
+        </el-button>
+        <span v-if="order" class="order-number-header">{{ order.order_number || order.id.slice(0, 8) }}</span>
+      </div>
       <div class="header-actions">
         <el-button
           v-if="order?.status === 'pending'"
@@ -150,7 +153,12 @@
                     </p>
                     <p v-if="delivery.tracking_number" class="tracking-number-row">
                       <strong>运单号：</strong>
-                      <span>{{ delivery.tracking_number }}</span>
+                      <a
+                        :href="getTrackingUrl(delivery.express_company, delivery.tracking_number)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="tracking-link"
+                      >{{ delivery.tracking_number }}</a>
                       <el-button link size="small" @click="handleCopyTracking(delivery.tracking_number!)">
                         <el-icon><CopyDocument /></el-icon>
                       </el-button>
@@ -256,6 +264,7 @@ import {
   getExpressStatusColor,
   getExpressBgColor,
   copyTrackingNumber,
+  getTrackingUrl,
 } from '@/api/express'
 
 const route = useRoute()
@@ -775,6 +784,19 @@ async function deleteDelivery(delivery: OrderDelivery) {
   gap: 8px;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.order-number-header {
+  font-family: monospace;
+  font-size: 18px;
+  font-weight: 600;
+  color: #409eff;
+}
+
 .header-actions {
   display: flex;
   gap: 8px;
@@ -826,6 +848,15 @@ async function deleteDelivery(delivery: OrderDelivery) {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.tracking-link {
+  color: #409eff;
+  text-decoration: none;
+}
+
+.tracking-link:hover {
+  text-decoration: underline;
 }
 
 .delivery-header-actions {

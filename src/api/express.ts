@@ -80,6 +80,56 @@ export const EXPRESS_STATUS_FLOW: ExpressStatus[] = [
 ]
 
 /**
+ * Express company codes for Kuaidi100 tracking URLs
+ * Maps company names (as stored in database) to Kuaidi100 company codes
+ */
+export const EXPRESS_COMPANY_CODES: Record<string, string> = {
+  '顺丰速运': 'shunfeng',
+  '顺丰': 'shunfeng',
+  '中通快递': 'zhongtong',
+  '中通': 'zhongtong',
+  '圆通速递': 'yuantong',
+  '圆通': 'yuantong',
+  '申通快递': 'shentong',
+  '申通': 'shentong',
+  '韵达快递': 'yunda',
+  '韵达': 'yunda',
+  '京东物流': 'jd',
+  '京东': 'jd',
+  '极兔速递': 'jtexpress',
+  '极兔': 'jtexpress',
+  '邮政EMS': 'ems',
+  'EMS': 'ems',
+  '百世快递': 'huitongkuaidi',
+  '百世': 'huitongkuaidi',
+  '天天快递': 'tiantian',
+  '德邦快递': 'debangwuliu',
+  '德邦': 'debangwuliu',
+}
+
+/**
+ * Generate tracking URL for an express delivery
+ * Uses Kuaidi100 as unified tracking service
+ *
+ * @param companyName - Express company name (e.g., "顺丰速运")
+ * @param trackingNumber - Tracking number
+ * @returns Kuaidi100 tracking URL
+ */
+export function getTrackingUrl(companyName: string | null | undefined, trackingNumber: string): string {
+  if (!trackingNumber) return ''
+
+  // Get company code, fallback to auto-detect via Kuaidi100
+  const companyCode = companyName ? EXPRESS_COMPANY_CODES[companyName] : ''
+
+  if (companyCode) {
+    return `https://www.kuaidi100.com/chaxun?com=${companyCode}&nu=${trackingNumber}`
+  }
+
+  // Fallback: use Kuaidi100 auto-detect (no company parameter)
+  return `https://www.kuaidi100.com/chaxun?nu=${trackingNumber}`
+}
+
+/**
  * Get next express status
  */
 export function getNextExpressStatus(currentStatus: ExpressStatus): ExpressStatus | null {

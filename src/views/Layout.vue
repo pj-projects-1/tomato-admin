@@ -34,6 +34,10 @@
           <el-icon><Van /></el-icon>
           <template #title>配送规划</template>
         </el-menu-item>
+        <el-menu-item v-if="showInstallMenuItem" @click="handleInstallApp">
+          <el-icon><Iphone /></el-icon>
+          <template #title>{{ isAppInstalled ? '已安装' : '安装应用' }}</template>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -77,6 +81,10 @@
           <el-menu-item index="/deliveries">
             <el-icon><Van /></el-icon>
             <template #title>配送规划</template>
+          </el-menu-item>
+          <el-menu-item v-if="showInstallMenuItem" @click="handleInstallApp">
+            <el-icon><Iphone /></el-icon>
+            <template #title>{{ isAppInstalled ? '已安装' : '安装应用' }}</template>
           </el-menu-item>
         </el-menu>
       </div>
@@ -130,6 +138,17 @@
         <router-view />
       </el-main>
     </el-container>
+
+    <!-- PWA Install Banner -->
+    <InstallBanner />
+
+    <!-- Offline Indicator -->
+    <Transition name="fade">
+      <div v-if="isOffline" class="offline-indicator">
+        <el-icon><WarningFilled /></el-icon>
+        <span>网络已断开，部分功能受限</span>
+      </div>
+    </Transition>
   </el-container>
 </template>
 
@@ -138,14 +157,25 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import { usePWAInstall } from '@/composables/usePWAInstall'
+import InstallBanner from '@/components/InstallBanner.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
+// PWA install
+const {
+  isInstalled: isAppInstalled,
+  isIOS,
+  install,
+  openIOSGuide,
+} = usePWAInstall()
+
 const isCollapse = ref(false)
 const isMobile = ref(false)
 const drawerVisible = ref(false)
+const isOffline = ref(false)
 
 const MOBILE_BREAKPOINT = 768
 
@@ -157,18 +187,53 @@ function checkMobile() {
   }
 }
 
+// Offline detection
+function updateOnlineStatus() {
+  isOffline.value = !navigator.onLine
+}
+
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+
+  // Offline detection
+  updateOnlineStatus()
+  window.addEventListener('online', updateOnlineStatus)
+  window.addEventListener('offline', updateOnlineStatus)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
+  window.removeEventListener('online', updateOnlineStatus)
+  window.removeEventListener('offline', updateOnlineStatus)
 })
 
 const activeMenu = computed(() => route.path)
 const userName = computed(() => authStore.userName)
 const isAdmin = computed(() => authStore.isAdmin)
+
+// Show install menu item if not installed or is iOS
+const showInstallMenuItem = computed(() => !isAppInstalled.value)
+const iOSInstallGuideUrl = 'https://support.apple.com/zh-cn/guide/iphone/iph42ab2f3a7/ios'
+
+/**
+ * Handle install app from sidebar menu
+ */
+async function handleInstallApp() {
+  // Close mobile drawer if open
+  drawerVisible.value = false
+
+  if (isIOS.value) {
+    // iOS: open guide
+    window.open(iOSInstallGuideUrl, '_blank', 'noopener,noreferrer')
+  } else {
+    // Try native install
+    const success = await install()
+    if (!success) {
+      ElMessage.info('请使用浏览器菜单中的"添加到主屏幕"功能')
+    }
+  }
+}
 
 async function handleCommand(command: string) {
   if (command === 'logout') {
@@ -314,5 +379,34 @@ async function handleCommand(command: string) {
   .user-name {
     display: none;
   }
+}
+
+/* Offline indicator */
+.offline-indicator {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #e6a23c;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  z-index: 2000;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Fade transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

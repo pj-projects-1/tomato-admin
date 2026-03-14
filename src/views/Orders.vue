@@ -157,7 +157,12 @@
                 <el-table-column label="运单号" width="140">
                   <template #default="{ row: delivery }">
                     <div v-if="delivery.delivery_method === 'express' && delivery.tracking_number" class="tracking-cell">
-                      <span>{{ delivery.tracking_number }}</span>
+                      <a
+                        :href="getTrackingUrl(delivery.express_company, delivery.tracking_number)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="tracking-link"
+                      >{{ delivery.tracking_number }}</a>
                       <el-button
                         link
                         size="small"
@@ -173,32 +178,37 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="customer" label="客户" min-width="120">
+        <el-table-column prop="order_number" label="订单号" min-width="140">
+          <template #default="{ row }">
+            <span class="order-number">{{ row.order_number || row.id.slice(0, 8) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="customer" label="客户" min-width="100">
           <template #default="{ row }">
             {{ row.customer?.name || '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="total_boxes" label="总箱数" width="80" align="center" />
-        <el-table-column prop="total_amount" label="金额" width="100">
+        <el-table-column prop="total_boxes" label="箱数" width="70" align="center" />
+        <el-table-column prop="total_amount" label="金额" width="90" align="right">
           <template #default="{ row }">
-            ¥{{ row.total_amount || 0 }}
+            <span class="amount-text">¥{{ row.total_amount || 0 }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="paid" label="付款" width="80" align="center">
+        <el-table-column prop="paid" label="付款" width="70" align="center">
           <template #default="{ row }">
             <el-tag :type="row.paid ? 'success' : 'warning'" size="small">
               {{ row.paid ? '已付' : '未付' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="90">
+        <el-table-column prop="status" label="状态" width="80" align="center">
           <template #default="{ row }">
             <el-tag size="small" :style="{ backgroundColor: getStatusBgColor(row.status), color: getStatusColor(row.status), border: 'none' }">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="deliveries" label="配送" width="130" align="center">
+        <el-table-column prop="deliveries" label="配送" min-width="110" align="center">
           <template #default="{ row }">
             <div class="delivery-badges">
               <el-tag v-if="getSelfDeliveryCount(row.deliveries) > 0" type="primary" size="small">
@@ -210,12 +220,12 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="110">
+        <el-table-column prop="created_at" label="创建时间" width="100">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons-grid">
               <div class="action-row">
@@ -250,11 +260,12 @@
         >
           <div class="order-mobile-card">
             <div class="card-header-row">
-              <span class="customer-name">{{ item.customer?.name || '-' }}</span>
+              <span class="order-number-mobile">{{ item.order_number || item.id.slice(0, 8) }}</span>
               <el-tag size="small" :style="{ backgroundColor: getStatusBgColor(item.status), color: getStatusColor(item.status), border: 'none' }">
                 {{ getStatusText(item.status) }}
               </el-tag>
             </div>
+            <div class="card-customer">{{ item.customer?.name || '-' }}</div>
             <div class="card-info-row">
               <span class="amount">¥{{ item.total_amount || 0 }}</span>
               <span>{{ item.total_boxes }}箱</span>
@@ -528,7 +539,8 @@ import {
   getExpressStatusText,
   getExpressStatusColor,
   getExpressBgColor,
-  copyTrackingNumber as copyTracking
+  copyTrackingNumber as copyTracking,
+  getTrackingUrl,
 } from '@/api/express'
 
 const router = useRouter()
@@ -1099,6 +1111,19 @@ async function batchDelete() {
   min-height: 100%;
 }
 
+.order-number {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-weight: 600;
+  font-size: 13px;
+  color: #409eff;
+  letter-spacing: 0.5px;
+}
+
+.amount-text {
+  font-weight: 500;
+  color: #303133;
+}
+
 .pagination-container {
   display: flex;
   justify-content: center;
@@ -1236,6 +1261,16 @@ async function batchDelete() {
   gap: 4px;
 }
 
+.delivery-expanded .tracking-link {
+  color: #409eff;
+  text-decoration: none;
+  font-size: inherit;
+}
+
+.delivery-expanded .tracking-link:hover {
+  text-decoration: underline;
+}
+
 .delivery-expanded .text-muted {
   color: #c0c4cc;
 }
@@ -1341,9 +1376,16 @@ async function batchDelete() {
     align-items: center;
   }
 
-  .order-mobile-card .customer-name {
-    font-weight: 500;
+  .order-mobile-card .order-number-mobile {
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: #409eff;
+  }
+
+  .order-mobile-card .card-customer {
     font-size: 15px;
+    font-weight: 500;
   }
 
   .order-mobile-card .card-info-row {
