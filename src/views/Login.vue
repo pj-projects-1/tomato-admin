@@ -47,6 +47,12 @@
             登录
           </el-button>
         </el-form-item>
+
+        <div style="text-align: center; margin-top: -12px; margin-bottom: 12px;">
+          <el-button text type="primary" @click="showForgotPassword = true">
+            忘记密码?
+          </el-button>
+        </div>
       </el-form>
 
       <el-divider>或</el-divider>
@@ -98,6 +104,31 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- Forgot Password Dialog -->
+    <el-dialog
+      v-model="showForgotPassword"
+      title="重置密码"
+      width="400px"
+      class="register-dialog"
+    >
+      <el-form
+        ref="forgotPasswordFormRef"
+        :model="forgotPasswordForm"
+        :rules="forgotPasswordRules"
+        label-position="top"
+      >
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="forgotPasswordForm.email" placeholder="请输入注册时使用的邮箱" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showForgotPassword = false">取消</el-button>
+        <el-button type="primary" :loading="forgotPasswordLoading" @click="handleForgotPassword">
+          发送重置邮件
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -115,9 +146,12 @@ const authStore = useAuthStore()
 
 const formRef = ref<FormInstance>()
 const registerFormRef = ref<FormInstance>()
+const forgotPasswordFormRef = ref<FormInstance>()
 const loading = ref(false)
 const showRegister = ref(false)
 const registerLoading = ref(false)
+const showForgotPassword = ref(false)
+const forgotPasswordLoading = ref(false)
 
 const form = reactive({
   identifier: '',
@@ -128,6 +162,10 @@ const registerForm = reactive({
   name: '',
   email: '',
   password: '',
+})
+
+const forgotPasswordForm = reactive({
+  email: '',
 })
 
 const rules: FormRules = {
@@ -150,6 +188,13 @@ const registerRules: FormRules = {
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码至少6位', trigger: 'blur' },
+  ],
+}
+
+const forgotPasswordRules: FormRules = {
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
   ],
 }
 
@@ -202,6 +247,27 @@ async function handleRegister() {
     ElMessage.error('注册失败，请重试')
   } finally {
     registerLoading.value = false
+  }
+}
+
+async function handleForgotPassword() {
+  const valid = await forgotPasswordFormRef.value?.validate()
+  if (!valid) return
+
+  forgotPasswordLoading.value = true
+  try {
+    const result = await authStore.sendPasswordResetEmail(forgotPasswordForm.email)
+    if (result.success) {
+      ElMessage.success('重置邮件已发送，请查收邮箱')
+      showForgotPassword.value = false
+      forgotPasswordForm.email = ''
+    } else {
+      ElMessage.error(result.error || '发送失败')
+    }
+  } catch (error) {
+    ElMessage.error('发送失败，请重试')
+  } finally {
+    forgotPasswordLoading.value = false
   }
 }
 </script>

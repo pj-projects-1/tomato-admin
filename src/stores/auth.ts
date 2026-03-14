@@ -164,8 +164,8 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = data.user
       try {
         profile.value = await getProfile(data.user.id)
-      } catch {
-        // Profile may not exist yet for new users
+      } catch (error) {
+        console.warn('Profile fetch failed (expected for new users):', error)
       }
 
       return { success: true }
@@ -198,8 +198,8 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = data.user
         try {
           profile.value = await getProfile(data.user.id)
-        } catch {
-          // Profile will be created by trigger
+        } catch (error) {
+          console.warn('Profile fetch failed (profile created by trigger):', error)
         }
       }
 
@@ -269,6 +269,85 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /**
+   * Send password reset email via Supabase magic link
+   */
+  async function sendPasswordResetEmail(email: string) {
+    loading.value = true
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      if (error) throw error
+
+      return { success: true }
+    } catch (error) {
+      const message = (error as Error).message
+      // Don't reveal if email exists or not for security
+      if (message.includes('User not found')) {
+        // Still return success to prevent email enumeration
+        return { success: true }
+      }
+      return { success: false, error: message }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Update user password (called after magic link verification)
+   */
+  async function updateUserPassword(newPassword: string) {
+    loading.value = true
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+
+      if (error) throw error
+
+      return { success: true }
+    } catch (error) {
+      const message = (error as Error).message
+      if (message.includes('Password')) {
+        return { success: false, error: '密码强度不足，请使用至少6位密码' }
+      }
+      return { success: false, error: message }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Update user name (can be called during password reset)
+   */
+  async function updateUserName(name: string) {
+    if (!user.value) return { success: false, error: 'Not authenticated' }
+
+    loading.value = true
+    try {
+      // Update profile table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ name: name.trim() })
+        .eq('id', user.value.id)
+
+      if (profileError) throw profileError
+
+      // Update local state
+      if (profile.value) {
+        profile.value = { ...profile.value, name: name.trim() }
+      }
+
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: (error as Error).message }
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     user,
     profile,
@@ -285,5 +364,8 @@ export const useAuthStore = defineStore('auth', () => {
     signUp,
     signOut,
     updateProfile,
+    sendPasswordResetEmail,
+    updateUserPassword,
+    updateUserName,
   }
 })

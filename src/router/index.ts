@@ -12,6 +12,12 @@ const router = createRouter({
       meta: { requiresGuest: true },
     },
     {
+      path: '/reset-password',
+      name: 'ResetPassword',
+      component: () => import('@/views/ResetPassword.vue'),
+      // No requiresGuest or requiresAuth - magic link establishes session
+    },
+    {
       path: '/',
       component: () => import('@/views/Layout.vue'),
       meta: { requiresAuth: true },
@@ -50,6 +56,12 @@ const router = createRouter({
           path: 'deliveries/:id',
           name: 'DeliveryDetail',
           component: () => import('@/views/DeliveryDetail.vue'),
+        },
+        {
+          path: 'users',
+          name: 'Users',
+          component: () => import('@/views/Users.vue'),
+          meta: { requiresAdmin: true },
         },
       ],
     },
@@ -107,6 +119,7 @@ export function forceUpdateSessionCache(valid: boolean) {
 router.beforeEach(async (to, _from, next) => {
   const requiresAuth = to.meta.requiresAuth
   const requiresGuest = to.meta.requiresGuest
+  const requiresAdmin = to.meta.requiresAdmin
 
   // Skip auth check for public routes
   if (!requiresAuth && !requiresGuest) {
@@ -145,6 +158,15 @@ router.beforeEach(async (to, _from, next) => {
   if (requiresGuest && isValid) {
     next({ name: 'Dashboard' })
     return
+  }
+
+  // Check admin access
+  if (requiresAdmin) {
+    const authStore = useAuthStore()
+    if (!authStore.isAdmin) {
+      next({ name: 'Dashboard' })
+      return
+    }
   }
 
   next()

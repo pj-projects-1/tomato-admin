@@ -34,6 +34,10 @@
           <el-icon><Van /></el-icon>
           <template #title>配送规划</template>
         </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/users">
+          <el-icon><Setting /></el-icon>
+          <template #title>用户管理</template>
+        </el-menu-item>
         <el-menu-item v-if="showInstallMenuItem" @click="handleInstallApp">
           <el-icon><Iphone /></el-icon>
           <template #title>{{ isAppInstalled ? '已安装' : '安装应用' }}</template>
@@ -81,6 +85,10 @@
           <el-menu-item index="/deliveries">
             <el-icon><Van /></el-icon>
             <template #title>配送规划</template>
+          </el-menu-item>
+          <el-menu-item v-if="isAdmin" index="/users">
+            <el-icon><Setting /></el-icon>
+            <template #title>用户管理</template>
           </el-menu-item>
           <el-menu-item v-if="showInstallMenuItem" @click="handleInstallApp">
             <el-icon><Iphone /></el-icon>
