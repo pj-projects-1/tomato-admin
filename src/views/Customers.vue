@@ -84,11 +84,11 @@
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120">
+        <el-table-column label="操作" width="140">
           <template #default="{ row }">
             <div class="action-buttons-grid">
               <div class="action-row">
-                <el-button link type="primary" @click="showEditDialog(row)">编辑</el-button>
+                <el-button link type="primary" @click="showDetailDialog(row)">详情</el-button>
                 <el-button link type="primary" @click="viewOrders(row)">订单</el-button>
               </div>
               <div class="action-row">
@@ -126,7 +126,7 @@
           <div
             class="customer-mobile-card"
             :class="{ 'export-selectable': exportMode, 'selected': isCustomerSelected(item) }"
-            @click="exportMode ? toggleCustomerSelection(item) : showEditDialog(item)"
+            @click="exportMode ? toggleCustomerSelection(item) : showDetailDialog(item)"
           >
             <div class="card-header-row">
               <template v-if="exportMode">
@@ -147,7 +147,7 @@
               <span class="note">{{ item.note }}</span>
             </div>
             <div class="card-actions" v-if="!exportMode">
-              <el-button size="small" type="primary" @click.stop="showEditDialog(item)">编辑</el-button>
+              <el-button size="small" type="primary" @click.stop="showDetailDialog(item)">详情</el-button>
               <el-button size="small" @click.stop="viewOrders(item)">订单</el-button>
               <el-button size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
             </div>
@@ -169,15 +169,168 @@
       </div>
     </el-card>
 
-    <!-- Add/Edit Dialog -->
+    <!-- Detail Dialog -->
     <el-dialog
-      v-model="dialogVisible"
-      :title="isEdit ? '编辑客户' : '新增客户'"
+      v-model="detailDialogVisible"
+      title="客户详情"
+      width="560px"
+      destroy-on-close
+      class="customer-detail-dialog"
+    >
+      <div v-if="detailCustomer" class="detail-content">
+        <!-- Header with name and edit button -->
+        <div class="detail-header">
+          <div class="customer-avatar">
+            <span>{{ detailCustomer.name?.charAt(0) || '客' }}</span>
+          </div>
+          <div class="customer-header-info">
+            <h2 class="customer-full-name">{{ detailCustomer.name }}</h2>
+            <span class="customer-meta">创建于 {{ formatDate(detailCustomer.created_at) }}</span>
+          </div>
+          <el-button type="primary" @click="enterEditMode" v-if="!isEditMode">
+            <el-icon><Edit /></el-icon>
+            编辑
+          </el-button>
+        </div>
+
+        <!-- View Mode -->
+        <div v-if="!isEditMode" class="detail-view">
+          <!-- Contact Info -->
+          <div class="detail-section">
+            <div class="section-title">联系方式</div>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">微信</span>
+                <span class="info-value">{{ detailCustomer.wechat || '未填写' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">电话</span>
+                <span class="info-value">
+                  <PhoneField v-if="detailCustomer.phone" :phone="detailCustomer.phone" />
+                  <span v-else>未填写</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Addresses -->
+          <div class="detail-section" v-if="detailCustomer.addresses?.length">
+            <div class="section-title">收货地址</div>
+            <div class="address-list-view">
+              <div
+                v-for="(addr, index) in detailCustomer.addresses"
+                :key="index"
+                class="address-card"
+                :class="{ 'is-default': addr.is_default }"
+              >
+                <div class="address-card-header">
+                  <span class="address-label">{{ addr.label || '地址' + (index + 1) }}</span>
+                  <el-tag v-if="addr.is_default" type="success" size="small">默认</el-tag>
+                </div>
+                <div class="address-text">{{ addr.address }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Note -->
+          <div class="detail-section" v-if="detailCustomer.note">
+            <div class="section-title">备注</div>
+            <div class="note-content">{{ detailCustomer.note }}</div>
+          </div>
+        </div>
+
+        <!-- Edit Mode -->
+        <div v-else class="detail-edit">
+          <el-form
+            ref="formRef"
+            :model="form"
+            :rules="rules"
+            label-width="80px"
+            label-position="top"
+          >
+            <el-form-item label="姓名" prop="name">
+              <el-input v-model="form.name" placeholder="请输入客户姓名" />
+            </el-form-item>
+            <el-form-item label="微信" prop="wechat">
+              <el-input v-model="form.wechat" placeholder="请输入微信号" />
+            </el-form-item>
+            <el-form-item label="电话" prop="phone">
+              <el-input v-model="form.phone" placeholder="请输入电话号码" />
+            </el-form-item>
+            <el-form-item label="地址">
+              <div class="address-list">
+                <div
+                  v-for="(addr, index) in form.addresses"
+                  :key="index"
+                  class="address-item"
+                >
+                  <div class="address-row-main">
+                    <el-input
+                      v-model="addr.label"
+                      placeholder="标签（如：家、公司）"
+                      class="address-label-input"
+                    />
+                    <AddressInput
+                      v-model="addr.address"
+                      v-model:location="addr.location"
+                      placeholder="输入地址搜索..."
+                      class="address-input"
+                    />
+                  </div>
+                  <div class="address-row-actions">
+                    <el-checkbox v-model="addr.is_default">默认</el-checkbox>
+                    <el-button
+                      text
+                      type="danger"
+                      size="small"
+                      @click="removeAddress(index)"
+                    >
+                      删除
+                    </el-button>
+                  </div>
+                </div>
+                <el-button text type="primary" @click="addAddress">
+                  <el-icon><Plus /></el-icon>
+                  添加地址
+                </el-button>
+              </div>
+            </el-form-item>
+            <el-form-item label="备注" prop="note">
+              <el-input
+                v-model="form.note"
+                type="textarea"
+                :rows="3"
+                placeholder="备注信息"
+              />
+            </el-form-item>
+          </el-form>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <template v-if="!isEditMode">
+            <el-button @click="detailDialogVisible = false">关闭</el-button>
+          </template>
+          <template v-else>
+            <el-button @click="cancelEdit">取消</el-button>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">
+              保存
+            </el-button>
+          </template>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- Add Dialog -->
+    <el-dialog
+      v-model="addDialogVisible"
+      title="新增客户"
       width="600px"
       destroy-on-close
     >
       <el-form
-        ref="formRef"
+        ref="addFormRef"
         :model="form"
         :rules="rules"
         label-width="80px"
@@ -239,11 +392,11 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="addDialogVisible = false">取消</el-button>
         <el-button
           type="primary"
           :loading="submitting"
-          @click="handleSubmit"
+          @click="handleAddSubmit"
         >
           保存
         </el-button>
@@ -253,10 +406,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules, TableInstance } from 'element-plus'
+import { Edit } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { useCustomerStore } from '@/stores/customers'
 import { exportCustomers } from '@/api/export'
@@ -286,11 +440,14 @@ const currentPage = ref(1)
 const pageSize = 20
 
 const searchKeyword = ref('')
-const dialogVisible = ref(false)
-const isEdit = ref(false)
+const addDialogVisible = ref(false)
+const detailDialogVisible = ref(false)
+const isEditMode = ref(false)
 const submitting = ref(false)
 const formRef = ref<FormInstance>()
+const addFormRef = ref<FormInstance>()
 const editingId = ref('')
+const detailCustomer = ref<Customer | null>(null)
 
 // Export mode
 const exportMode = ref(false)
@@ -344,12 +501,6 @@ onUnmounted(() => {
 function handleSearch() {
   resetPagination()
   customerStore.fetchCustomers(searchKeyword.value)
-}
-
-function handleExport() {
-  const filenameSuffix = searchKeyword.value ? `_搜索${searchKeyword.value}` : ''
-  exportCustomers(customerStore.customers, filenameSuffix)
-  ElMessage.success(`已导出 ${totalCustomers.value} 条客户`)
 }
 
 // Export mode functions
@@ -418,7 +569,6 @@ function formatDate(date: string) {
 }
 
 function showAddDialog() {
-  isEdit.value = false
   editingId.value = ''
   Object.assign(form, {
     name: '',
@@ -427,11 +577,12 @@ function showAddDialog() {
     addresses: [],
     note: '',
   })
-  dialogVisible.value = true
+  addDialogVisible.value = true
 }
 
-function showEditDialog(customer: Customer) {
-  isEdit.value = true
+function showDetailDialog(customer: Customer) {
+  detailCustomer.value = customer
+  isEditMode.value = false
   editingId.value = customer.id
   Object.assign(form, {
     name: customer.name,
@@ -440,7 +591,25 @@ function showEditDialog(customer: Customer) {
     addresses: customer.addresses?.length ? [...customer.addresses] : [],
     note: customer.note || '',
   })
-  dialogVisible.value = true
+  detailDialogVisible.value = true
+}
+
+function enterEditMode() {
+  isEditMode.value = true
+}
+
+function cancelEdit() {
+  // Reset form to original customer data
+  if (detailCustomer.value) {
+    Object.assign(form, {
+      name: detailCustomer.value.name,
+      wechat: detailCustomer.value.wechat || '',
+      phone: detailCustomer.value.phone || '',
+      addresses: detailCustomer.value.addresses?.length ? [...detailCustomer.value.addresses] : [],
+      note: detailCustomer.value.note || '',
+    })
+  }
+  isEditMode.value = false
 }
 
 function addAddress() {
@@ -468,13 +637,41 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    const result = isEdit.value
-      ? await customerStore.updateCustomer(editingId.value, form)
-      : await customerStore.createCustomer(form)
+    const result = await customerStore.updateCustomer(editingId.value, form)
 
     if (result.success) {
-      ElMessage.success(isEdit.value ? '更新成功' : '创建成功')
-      dialogVisible.value = false
+      ElMessage.success('更新成功')
+      // Update local detailCustomer to reflect changes
+      detailCustomer.value = {
+        ...detailCustomer.value!,
+        name: form.name,
+        wechat: form.wechat,
+        phone: form.phone,
+        addresses: form.addresses,
+        note: form.note,
+      }
+      isEditMode.value = false
+    } else {
+      ElMessage.error(result.error || '操作失败')
+    }
+  } catch (error) {
+    ElMessage.error('操作失败，请重试')
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function handleAddSubmit() {
+  const valid = await addFormRef.value?.validate()
+  if (!valid) return
+
+  submitting.value = true
+  try {
+    const result = await customerStore.createCustomer(form)
+
+    if (result.success) {
+      ElMessage.success('创建成功')
+      addDialogVisible.value = false
     } else {
       ElMessage.error(result.error || '操作失败')
     }
@@ -499,6 +696,10 @@ async function handleDelete(customer: Customer) {
     const result = await customerStore.deleteCustomer(customer.id)
     if (result.success) {
       ElMessage.success('删除成功')
+      // Close detail dialog if open
+      if (detailDialogVisible.value && detailCustomer.value?.id === customer.id) {
+        detailDialogVisible.value = false
+      }
     } else {
       ElMessage.error(result.error || '删除失败')
     }
@@ -573,7 +774,7 @@ function viewOrders(customer: Customer) {
 }
 
 .address-label-input {
-  width: 80px;
+  width: 120px;
   flex-shrink: 0;
 }
 
@@ -601,6 +802,160 @@ function viewOrders(customer: Customer) {
 /* Mobile card list - hidden on desktop */
 .mobile-card-list {
   display: none;
+}
+
+/* Customer Detail Dialog Styles */
+.detail-content {
+  min-height: 200px;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.customer-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.customer-avatar span {
+  color: #fff;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.customer-header-info {
+  flex: 1;
+}
+
+.customer-full-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.customer-meta {
+  font-size: 13px;
+  color: #909399;
+  margin-top: 4px;
+  display: block;
+}
+
+.detail-view {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #909399;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.info-value {
+  font-size: 14px;
+  color: #303133;
+}
+
+.address-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.address-card {
+  padding: 14px 16px;
+  background: #fafafa;
+  border-radius: 8px;
+  border-left: 3px solid #e4e7ed;
+  transition: all 0.2s;
+}
+
+.address-card.is-default {
+  background: #f0f9eb;
+  border-left-color: #67c23a;
+}
+
+.address-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.address-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #606266;
+}
+
+.address-text {
+  font-size: 14px;
+  color: #303133;
+  line-height: 1.5;
+}
+
+.note-content {
+  padding: 14px 16px;
+  background: #fafafa;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.6;
+}
+
+.detail-edit {
+  animation: fadeIn 0.2s ease;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 /* Mobile responsive styles */
@@ -727,6 +1082,26 @@ function viewOrders(customer: Customer) {
 
   :deep(.el-dialog .el-form-item__content) {
     margin-left: 0 !important;
+  }
+
+  /* Detail dialog mobile styles */
+  .detail-header {
+    flex-wrap: wrap;
+  }
+
+  .customer-header-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .detail-header .el-button {
+    order: 3;
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
   }
 
   /* Address item on mobile - stack vertically */
