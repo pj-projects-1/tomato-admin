@@ -113,20 +113,32 @@ src/
 
 ### Cloudflare Pages
 
-项目已配置为部署到 Cloudflare Pages：
+项目已配置为部署到 Cloudflare Pages。
 
-1. 连接 GitHub 仓库到 Cloudflare Pages
-2. 构建设置：
-   - 构建命令: `npm run build`
-   - 输出目录: `dist`
-3. 设置环境变量（同上述 `.env` 配置）
+**重要**: 生产环境部署必须使用 `--branch=master` 标志。
+
+```bash
+# 生产部署
+npm run build && npx wrangler pages deploy dist --project-name=tomato-admin --branch=master
+```
+
+**完整部署文档请参考**: [docs/WORKFLOWS.md](docs/WORKFLOWS.md)
 
 ### 自定义域名
 
-要配置自定义域名：
+生产环境域名: https://hongfantian.dpdns.org
 
-1. 在 Cloudflare Pages 中添加自定义域名
-2. 在域名 DNS 设置中添加 CNAME 记录指向 `your-project.pages.dev`
+## 开发工作流文档
+
+详细的开发、预览和生产部署流程请参考:
+
+- [WORKFLOWS.md](docs/WORKFLOWS.md) - 完整工作流文档
+  - 本地开发流程
+  - 预览分支部署
+  - 生产环境部署
+  - 数据库安全注意事项
+  - 紧急回滚方案
+  - 分支结构说明
 
 ## 数据库结构
 
