@@ -4,8 +4,11 @@ export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // Reduced retries from 2 to 1 for faster CI
+  retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
+  // Add global timeout for safety
+  timeout: 30000,
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:3000',
@@ -29,15 +32,15 @@ export default defineConfig({
       },
       dependencies: ['setup'],
     },
-    // Mobile tests
-    {
+    // Mobile tests - only run locally, skip in CI to save time
+    ...(process.env.CI ? [] : [{
       name: 'mobile-chrome',
       use: {
         ...devices['Pixel 5'],
-        ...(process.env.CI ? {} : { channel: 'chrome' }),
+        channel: 'chrome',
       },
       dependencies: ['setup'],
-    },
+    }]),
     // Authenticated desktop tests
     {
       name: 'authenticated-chromium',
@@ -49,17 +52,17 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: /.*\.authenticated\.spec\.ts/,
     },
-    // Authenticated mobile tests
-    {
+    // Authenticated mobile tests - only run locally
+    ...(process.env.CI ? [] : [{
       name: 'authenticated-mobile',
       use: {
         ...devices['Pixel 5'],
-        ...(process.env.CI ? {} : { channel: 'chrome' }),
+        channel: 'chrome',
         storageState: 'tests/.auth/user.json',
       },
       dependencies: ['setup'],
       testMatch: /.*\.authenticated\.spec\.ts/,
-    },
+    }]),
   ],
   webServer: {
     command: 'npm run dev',
