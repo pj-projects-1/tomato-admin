@@ -390,4 +390,73 @@ npm run build && npx wrangler pages deploy dist --project-name=tomato-admin --br
 
 ---
 
+## 7. CI/CD (GitHub Actions)
+
+### Pipeline Overview
+
+The project uses GitHub Actions for continuous integration (`.github/workflows/ci.yml`):
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   test      │ ──► │    e2e      │ ──► │   build     │
+│ (unit tests)│     │ (playwright)│     │ (artifacts) │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
+
+### Required GitHub Secrets
+
+For CI to pass, configure these secrets in GitHub repository settings:
+
+**Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret | Required For | Description |
+|--------|--------------|-------------|
+| `VITE_SUPABASE_URL` | Build, E2E | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Build, E2E | Supabase anonymous key |
+| `VITE_AMAP_KEY` | Build, E2E | AMap Web Service Key |
+| `VITE_AMAP_JS_KEY` | Build, E2E | AMap JS API Key |
+| `VITE_AMAP_JS_SECURITY_KEY` | Build, E2E | AMap security key |
+| `TEST_USER_EMAIL` | E2E (optional) | Test account email for E2E auth |
+| `TEST_USER_PASSWORD` | E2E (optional) | Test account password |
+| `VITE_SENTRY_DSN` | Optional | Sentry error tracking |
+| `VITE_FUNDEBUG_APIKEY` | Optional | Fundebug error tracking |
+
+### CI Behavior
+
+1. **Unit Tests**: Always run. Must pass for CI to succeed.
+2. **E2E Tests**: Gracefully skip if `TEST_USER_EMAIL` and `TEST_USER_PASSWORD` aren't set.
+3. **Build**: Creates production artifacts for deployment.
+
+### Running Tests Locally
+
+```bash
+# Unit tests
+npm run test:run
+
+# E2E tests (requires dev server)
+npm run dev              # Terminal 1
+npm run test:e2e         # Terminal 2
+
+# Or let Playwright start the server
+npm run test:e2e         # Playwright will start dev server automatically
+```
+
+### Troubleshooting CI Failures
+
+| Failure | Likely Cause | Solution |
+|---------|--------------|----------|
+| Unit test failure | Code change broke test | Run `npm run test:run` locally, fix |
+| Build failure | TypeScript error | Run `npm run build` locally |
+| E2E timeout | Server slow to start | Check webServer config |
+| Auth test skip | Missing secrets | Configure GitHub secrets |
+| E2E flaky | Network/timeout issues | Increase retries in CI |
+
+### CI on Different Branches
+
+- **main**: CI runs on push
+- **master**: CI runs on push (production branch)
+- **PRs**: CI runs on pull requests to main/master
+
+---
+
 *Last updated: April 2026*
