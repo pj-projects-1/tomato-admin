@@ -14,6 +14,7 @@ vi.mock('@/api/supabase', () => ({
         order: vi.fn(() => Promise.resolve({ data: [], error: null })),
         eq: vi.fn(() => ({
           single: vi.fn(() => Promise.resolve({ data: { id: 'test-id', name: 'Test Customer' }, error: null })),
+          limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
         })),
         or: vi.fn(() => ({
           order: vi.fn(() => Promise.resolve({ data: [], error: null })),
