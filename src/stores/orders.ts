@@ -114,6 +114,7 @@ export const useOrderStore = defineStore('orders', () => {
         express_company: d.express_company || null,
         weight: d.weight || null,
         express_status: d.delivery_method === 'express' ? 'pending_pack' : null,
+        pickup_status: d.delivery_method === 'pickup' ? 'pending' : null,
       }))
 
       const { error: deliveriesError } = await supabase
@@ -311,9 +312,31 @@ export const useOrderStore = defineStore('orders', () => {
   async function updateDelivery(deliveryId: string, updates: Partial<OrderDelivery>) {
     loading.value = true
     try {
+      // Transform updates based on delivery_method
+      const transformedUpdates: Partial<OrderDelivery> = { ...updates }
+
+      if (updates.delivery_method !== undefined) {
+        const deliveryMethod = updates.delivery_method
+
+        if (deliveryMethod === 'express') {
+          // Express: set express_status to pending_pack if not already set
+          transformedUpdates.express_company = updates.express_company || undefined
+          transformedUpdates.weight = updates.weight || undefined
+          if (!updates.express_status) {
+            transformedUpdates.express_status = 'pending_pack'
+          }
+        } else {
+          // Self delivery: clear express-related fields
+          transformedUpdates.express_company = undefined
+          transformedUpdates.weight = undefined
+          transformedUpdates.express_status = undefined
+          transformedUpdates.status = 'pending'
+        }
+      }
+
       const { data, error } = await supabase
         .from('order_deliveries')
-        .update(updates)
+        .update(transformedUpdates)
         .eq('id', deliveryId)
         .select()
         .single()
@@ -366,6 +389,7 @@ export const useOrderStore = defineStore('orders', () => {
   async function addDelivery(orderId: string, delivery: Partial<OrderDelivery>) {
     loading.value = true
     try {
+      const deliveryMethod = delivery.delivery_method || 'self'
       const { data, error } = await supabase
         .from('order_deliveries')
         .insert({
@@ -376,6 +400,10 @@ export const useOrderStore = defineStore('orders', () => {
           quantity: delivery.quantity,
           location: delivery.location || undefined,
           delivery_note: delivery.delivery_note || undefined,
+          delivery_method: deliveryMethod,
+          express_company: deliveryMethod === 'express' ? delivery.express_company || null : null,
+          weight: deliveryMethod === 'express' ? delivery.weight || null : null,
+          express_status: deliveryMethod === 'express' ? 'pending_pack' : null,
         })
         .select()
         .single()
@@ -412,13 +440,14 @@ export const useOrderStore = defineStore('orders', () => {
    * Check if all deliveries for an order are delivered and update order status
    * For self deliveries: check 'status' field
    * For express deliveries: check 'express_status' field
+   * For pickup deliveries: check 'pickup_status' field
    */
   async function checkAndUpdateOrderCompletion(orderId: string): Promise<{ completed: boolean; error?: string }> {
     try {
       // Fetch all deliveries for this order
       const { data: deliveries, error: fetchError } = await supabase
         .from('order_deliveries')
-        .select('id, delivery_method, status, express_status')
+        .select('id, delivery_method, status, express_status, pickup_status')
         .eq('order_id', orderId)
 
       if (fetchError) throw fetchError
@@ -429,13 +458,16 @@ export const useOrderStore = defineStore('orders', () => {
 
       // Check if all deliveries are delivered
       const allDelivered = deliveries.every(d => {
+        if (d.delivery_method === 'pickup') {
+          // Pickup: check pickup_status
+          return d.pickup_status === 'picked_up'
+        }
         if (d.delivery_method === 'express') {
           // Express: check express_status
           return d.express_status === 'delivered'
-        } else {
-          // Self delivery: check status
-          return d.status === 'delivered'
         }
+        // Self delivery: check status
+        return d.status === 'delivered'
       })
 
       if (allDelivered) {
@@ -500,6 +532,43 @@ export const useOrderStore = defineStore('orders', () => {
     }
   }
 
+  /**
+   * Called when pickup status changes in Deliveries.vue or OrderDetail.vue
+   * If status is 'picked_up', check if order should be marked complete
+   */
+  async function onPickupStatusChanged(
+    deliveryId: string,
+    newStatus: string
+  ): Promise<{ success: boolean; orderCompleted?: boolean; error?: string }> {
+    try {
+      // If not picked_up, nothing to do for order completion
+      if (newStatus !== 'picked_up') {
+        return { success: true, orderCompleted: false }
+      }
+
+      // Get the order_id for this delivery
+      const { data: delivery, error: fetchError } = await supabase
+        .from('order_deliveries')
+        .select('order_id')
+        .eq('id', deliveryId)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      if (!delivery?.order_id) {
+        return { success: false, error: 'Delivery not found' }
+      }
+
+      // Check if order should be marked complete
+      const result = await checkAndUpdateOrderCompletion(delivery.order_id)
+
+      return { success: true, orderCompleted: result.completed }
+    } catch (error) {
+      console.error('On pickup status changed error:', error)
+      return { success: false, error: (error as Error).message }
+    }
+  }
+
   return {
     orders,
     loading,
@@ -518,5 +587,6 @@ export const useOrderStore = defineStore('orders', () => {
     deleteDelivery,
     checkAndUpdateOrderCompletion,
     onExpressStatusChanged,
+    onPickupStatusChanged,
   }
 })

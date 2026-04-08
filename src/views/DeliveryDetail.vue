@@ -20,12 +20,9 @@
           <el-icon><Download /></el-icon>
           <span class="btn-text">导出清单</span>
         </el-button>
-        <el-dropdown trigger="click" :disabled="!hasValidLocations" @click="startNavigation">
-          <el-button type="primary" :disabled="!hasValidLocations">
-            <el-icon><Navigation /></el-icon>
-            <span class="btn-text">开始导航</span>
-            <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-          </el-button>
+        <el-dropdown split-button type="primary" trigger="click" :disabled="!hasValidLocations" @click="startNavigation">
+          <el-icon><Navigation /></el-icon>
+          <span class="btn-text">开始导航</span>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item @click="handleCopyNavLink">
@@ -273,7 +270,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { useDeliveryStore } from '@/stores/deliveries'
 import { getAmapService, DEFAULT_DEPARTURE, DEFAULT_DEPARTURE_ADDRESS, type Location } from '@/api/amap'
-import { exportDeliveryTask, copyNavigationLink, generateAmapAutoNavLink, copyToClipboard } from '@/api/export'
+import { exportDeliveryTask, copyNavigationLink, generateAmapAutoNavLink, copyToClipboard, launchAmapNavigation, type DeliveryPoint } from '@/api/export'
 import PhoneField from '@/components/PhoneField.vue'
 import type { DeliveryTask, DeliveryTaskStatus, OrderDelivery, DeliveryStatus, OptimizedRoute } from '@/types'
 
@@ -703,8 +700,8 @@ async function handleCopyNavLink() {
 
 /**
  * Start navigation - opens Amap with the route
- * On mobile: opens Amap app directly
- * On desktop: opens Amap web
+ * On mobile: tries app first, falls back to web
+ * On desktop: opens web version
  */
 function startNavigation() {
   if (!task.value || !hasValidLocations.value) {
@@ -712,10 +709,17 @@ function startNavigation() {
     return
   }
 
-  const navLink = generateAmapAutoNavLink(departure.value, destination.value, sortedDeliveries.value)
-  if (navLink) {
-    window.open(navLink, '_blank')
-  } else {
+  const success = launchAmapNavigation(
+    departure.value,
+    destination.value,
+    sortedDeliveries.value,
+    () => {
+      // Fallback callback - could show a hint
+      console.log('Amap app not found, using web version')
+    }
+  )
+
+  if (!success) {
     ElMessage.warning('无法生成导航链接')
   }
 }

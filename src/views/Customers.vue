@@ -115,44 +115,50 @@
           </template>
         </div>
 
-        <RecycleScroller
+        <DynamicScroller
           v-if="customerStore.customers.length > 0"
           class="mobile-scroller"
           :items="customerStore.customers"
-          :item-size="150"
+          :min-item-size="130"
           key-field="id"
-          v-slot="{ item }"
+          v-slot="{ item, active }"
         >
-          <div
-            class="customer-mobile-card"
-            :class="{ 'export-selectable': exportMode, 'selected': isCustomerSelected(item) }"
-            @click="exportMode ? toggleCustomerSelection(item) : showDetailDialog(item)"
+          <DynamicScrollerItem
+            :item="item"
+            :active="active"
+            :size-dependencies="[item.note, item.wechat, item.phone]"
           >
-            <div class="card-header-row">
-              <template v-if="exportMode">
-                <el-checkbox
-                  :model-value="isCustomerSelected(item)"
-                  @click.stop
-                  @change="toggleCustomerSelection(item)"
-                />
-              </template>
-              <span class="customer-name">{{ item.name }}</span>
-              <el-tag size="small" type="info">{{ item.addresses?.length || 0 }}地址</el-tag>
+            <div
+              class="customer-mobile-card"
+              :class="{ 'export-selectable': exportMode, 'selected': isCustomerSelected(item) }"
+              @click="exportMode ? toggleCustomerSelection(item) : showDetailDialog(item)"
+            >
+              <div class="card-header-row">
+                <template v-if="exportMode">
+                  <el-checkbox
+                    :model-value="isCustomerSelected(item)"
+                    @click.stop
+                    @change="toggleCustomerSelection(item)"
+                  />
+                </template>
+                <span class="customer-name">{{ item.name }}</span>
+                <el-tag size="small" type="info">{{ item.addresses?.length || 0 }}地址</el-tag>
+              </div>
+              <div class="card-info-row">
+                <span v-if="item.wechat">微信: {{ item.wechat }}</span>
+                <span v-if="item.phone">电话: <PhoneField :phone="item.phone" /></span>
+              </div>
+              <div class="card-footer" v-if="item.note">
+                <span class="note">{{ item.note }}</span>
+              </div>
+              <div class="card-actions" v-if="!exportMode">
+                <el-button size="small" type="primary" @click.stop="showDetailDialog(item)">详情</el-button>
+                <el-button size="small" @click.stop="viewOrders(item)">订单</el-button>
+                <el-button size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
+              </div>
             </div>
-            <div class="card-info-row">
-              <span v-if="item.wechat">微信: {{ item.wechat }}</span>
-              <span v-if="item.phone">电话: <PhoneField :phone="item.phone" /></span>
-            </div>
-            <div class="card-footer" v-if="item.note">
-              <span class="note">{{ item.note }}</span>
-            </div>
-            <div class="card-actions" v-if="!exportMode">
-              <el-button size="small" type="primary" @click.stop="showDetailDialog(item)">详情</el-button>
-              <el-button size="small" @click.stop="viewOrders(item)">订单</el-button>
-              <el-button size="small" type="danger" @click.stop="handleDelete(item)">删除</el-button>
-            </div>
-          </div>
-        </RecycleScroller>
+          </DynamicScrollerItem>
+        </DynamicScroller>
 
         <el-empty v-if="customerStore.customers.length === 0" description="暂无客户" />
       </div>
@@ -228,6 +234,43 @@
                   <el-tag v-if="addr.is_default" type="success" size="small">默认</el-tag>
                 </div>
                 <div class="address-text">{{ addr.address }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Orders -->
+          <div class="detail-section">
+            <div class="section-title">最近订单</div>
+            <div v-if="loadingOrders" class="orders-loading">
+              <el-icon class="is-loading"><Loading /></el-icon>
+              <span>加载中...</span>
+            </div>
+            <div v-else-if="recentOrders.length === 0" class="no-orders">
+              暂无订单
+            </div>
+            <div v-else class="recent-orders-list">
+              <div
+                v-for="order in recentOrders"
+                :key="order.id"
+                class="order-item"
+                @click="goToOrder(order.id)"
+              >
+                <div class="order-main">
+                  <span class="order-number">{{ order.order_number }}</span>
+                  <el-tag
+                    size="small"
+                    :style="{
+                      backgroundColor: getOrderStatusBg(order.status),
+                      color: getOrderStatusColor(order.status),
+                      border: 'none'
+                    }"
+                  >{{ getOrderStatusText(order.status) }}</el-tag>
+                </div>
+                <div class="order-meta">
+                  <span class="order-date">{{ formatDate(order.created_at) }}</span>
+                  <span class="order-amount">¥{{ order.total_amount }}</span>
+                  <span class="order-boxes">{{ order.total_boxes }}箱</span>
+                </div>
               </div>
             </div>
           </div>
@@ -410,18 +453,20 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules, TableInstance } from 'element-plus'
-import { Edit } from '@element-plus/icons-vue'
+import { Edit, Loading } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { useCustomerStore } from '@/stores/customers'
+import { useOrderStore } from '@/stores/orders'
 import { exportCustomers } from '@/api/export'
 import { usePullRefresh } from '@/composables/usePullRefresh'
 import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
 import PhoneField from '@/components/PhoneField.vue'
 import AddressInput from '@/components/AddressInput.vue'
-import type { Customer, CustomerAddress } from '@/types'
+import type { Customer, CustomerAddress, Order } from '@/types'
 
 const router = useRouter()
 const customerStore = useCustomerStore()
+const orderStore = useOrderStore()
 
 // Pull to refresh setup
 const pageContainerRef = ref<HTMLElement | null>(null)
@@ -448,6 +493,8 @@ const formRef = ref<FormInstance>()
 const addFormRef = ref<FormInstance>()
 const editingId = ref('')
 const detailCustomer = ref<Customer | null>(null)
+const recentOrders = ref<Order[]>([])
+const loadingOrders = ref(false)
 
 // Export mode
 const exportMode = ref(false)
@@ -568,6 +615,44 @@ function formatDate(date: string) {
   return dayjs(date).format('YYYY-MM-DD')
 }
 
+// Order status helpers
+function getOrderStatusText(status: string): string {
+  const map: Record<string, string> = {
+    pending: '未确认',
+    confirmed: '未完成',
+    delivering: '配送中',
+    completed: '已完成',
+    cancelled: '已取消',
+  }
+  return map[status] || status
+}
+
+function getOrderStatusColor(status: string): string {
+  const map: Record<string, string> = {
+    pending: '#E6A23C',
+    confirmed: '#409EFF',
+    delivering: '#00C9B7',
+    completed: '#67C23A',
+    cancelled: '#F56C6C',
+  }
+  return map[status] || '#909399'
+}
+
+function getOrderStatusBg(status: string): string {
+  const map: Record<string, string> = {
+    pending: '#FDF6EC',
+    confirmed: '#ECF5FF',
+    delivering: '#E8FAF8',
+    completed: '#F0F9EB',
+    cancelled: '#FEF0F0',
+  }
+  return map[status] || '#F4F4F5'
+}
+
+function goToOrder(orderId: string) {
+  router.push(`/orders/${orderId}`)
+}
+
 function showAddDialog() {
   editingId.value = ''
   Object.assign(form, {
@@ -580,7 +665,7 @@ function showAddDialog() {
   addDialogVisible.value = true
 }
 
-function showDetailDialog(customer: Customer) {
+async function showDetailDialog(customer: Customer) {
   detailCustomer.value = customer
   isEditMode.value = false
   editingId.value = customer.id
@@ -591,6 +676,20 @@ function showDetailDialog(customer: Customer) {
     addresses: customer.addresses?.length ? [...customer.addresses] : [],
     note: customer.note || '',
   })
+  detailDialogVisible.value = true
+
+  // Fetch recent orders for this customer
+  loadingOrders.value = true
+  try {
+    const orders = await orderStore.fetchOrders({ customerId: customer.id })
+    // Keep only the last 5 orders
+    recentOrders.value = (orders || []).slice(0, 5)
+  } catch (error) {
+    console.error('Failed to fetch recent orders:', error)
+    recentOrders.value = []
+  } finally {
+    loadingOrders.value = false
+  }
   detailDialogVisible.value = true
 }
 
@@ -946,6 +1045,72 @@ function viewOrders(customer: Customer) {
   font-size: 14px;
   color: #606266;
   line-height: 1.6;
+}
+
+/* Recent Orders styles */
+.orders-loading,
+.no-orders {
+  padding: 24px;
+  text-align: center;
+  color: #909399;
+  font-size: 14px;
+}
+
+.orders-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.recent-orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.order-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: #fafafa;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.order-item:hover {
+  background: #f0f0f0;
+}
+
+.order-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-number {
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.order-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: #909399;
+}
+
+.order-amount {
+  color: #f56c6c;
+  font-weight: 500;
+}
+
+.order-boxes {
+  color: #409eff;
 }
 
 .detail-edit {

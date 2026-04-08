@@ -4,7 +4,7 @@
  */
 
 import { supabase } from './supabase'
-import type { ExpressCompany, ExpressStatus, ExpressTrackingEvent } from '@/types'
+import type { ExpressCompany, ExpressStatus, ExpressTrackingEvent, TrackingNumberItem, TrackingNumbersData } from '@/types'
 
 /**
  * App identifier for Kuaidi100 mobile API
@@ -324,4 +324,151 @@ export async function copyTrackingNumber(trackingNumber: string): Promise<boolea
     document.body.removeChild(textarea)
     return success
   }
+}
+
+/**
+ * Detect carrier from tracking number prefix/pattern
+ * Returns carrier code for Kuaidi100, or null if not recognized
+ */
+export function detectCarrierFromTracking(trackingNumber: string): string | null {
+  if (!trackingNumber) return null
+
+  const num = trackingNumber.toUpperCase().trim()
+
+  // SF Express: starts with SF
+  if (num.startsWith('SF')) return 'shunfeng'
+
+  // YTO (Yuantong): starts with YT
+  if (num.startsWith('YT')) return 'yuantong'
+
+  // ZTO (Zhongtong): starts with ZT or 73x/75x/76x/77x/78x
+  if (num.startsWith('ZT')) return 'zhongtong'
+  if (/^(73|75|76|77|78)\d/.test(num)) return 'zhongtong'
+
+  // Yunda: starts with YD
+  if (num.startsWith('YD')) return 'yunda'
+
+  // JD Logistics: starts with JD
+  if (num.startsWith('JD')) return 'jd'
+
+  // J&T Express: starts with JT
+  if (num.startsWith('JT')) return 'jtexpress'
+
+  // EMS: format E...CN (letter E followed by digits/letters and ending with CN)
+  if (/^E[A-Z0-9]+CN$/.test(num)) return 'ems'
+
+  // STO (Shentong): starts with 268/368/468/568/668/768/868/968
+  if (/^(2|3|4|5|6|7|8|9)68\d/.test(num)) return 'shentong'
+
+  // Huitong (Best Express): starts with HT
+  if (num.startsWith('HT')) return 'huitongkuaidi'
+
+  // Deppon Express: starts with DP
+  if (num.startsWith('DP')) return 'debangwuliu'
+
+  return null
+}
+
+/**
+ * Get tracking numbers from a delivery object
+ * Supports both legacy single tracking_number and new tracking_numbers structure
+ */
+export function getTrackingNumbers(delivery: {
+  tracking_number?: string | null
+  tracking_numbers?: TrackingNumbersData | null
+  express_company?: string | null
+}): TrackingNumberItem[] {
+  // EDGE CASE: Handle malformed tracking_numbers data from DB
+  if (delivery.tracking_numbers && typeof delivery.tracking_numbers === 'object') {
+    // Validate items is an array
+    const items = delivery.tracking_numbers.items
+    if (Array.isArray(items) && items.length > 0) {
+      // Filter out invalid items (must have a non-empty number string)
+      const validItems = items.filter((item): item is TrackingNumberItem =>
+        item && typeof item === 'object' && typeof item.number === 'string' && item.number.trim() !== ''
+      )
+      if (validItems.length > 0) {
+        return validItems.map((item, idx) => ({
+          number: item.number.trim(),
+          carrier: item.carrier || '',
+          index: typeof item.index === 'number' ? item.index : idx
+        }))
+      }
+    }
+  }
+
+  // Fall back to legacy single tracking number
+  if (delivery.tracking_number && typeof delivery.tracking_number === 'string') {
+    const trimmedNumber = delivery.tracking_number.trim()
+    if (trimmedNumber) {
+      const carrier = detectCarrierFromTracking(trimmedNumber)
+        || (delivery.express_company ? EXPRESS_COMPANY_CODES[delivery.express_company] : null)
+        || ''
+
+      return [{
+        number: trimmedNumber,
+        carrier,
+        index: 0
+      }]
+    }
+  }
+
+  return []
+}
+
+/**
+ * Get the primary (first) tracking number from a delivery
+ */
+export function getPrimaryTrackingNumber(delivery: {
+  tracking_number?: string | null
+  tracking_numbers?: TrackingNumbersData
+  express_company?: string | null
+}): TrackingNumberItem | null {
+  const items = getTrackingNumbers(delivery)
+  if (!items.length) return null
+
+  const primaryIndex = delivery.tracking_numbers?.primary_index ?? 0
+  return items[primaryIndex] ?? items[0] ?? null
+}
+
+/**
+ * Build tracking_numbers data structure from items
+ */
+export function buildTrackingNumbersData(
+  items: Array<{ number: string; carrier?: string }>
+): TrackingNumbersData {
+  return {
+    items: items.map((item, idx) => ({
+      number: item.number,
+      carrier: item.carrier || detectCarrierFromTracking(item.number) || '',
+      index: idx
+    })),
+    primary_index: 0
+  }
+}
+
+/**
+ * Get tracking URL for a TrackingNumberItem
+ */
+export function getTrackingUrlFromItem(
+  item: TrackingNumberItem,
+  defaultCompany?: string | null
+): string {
+  // Use item's carrier if available, otherwise try to detect or use default
+  const companyCode = item.carrier || detectCarrierFromTracking(item.number) ||
+    (defaultCompany ? EXPRESS_COMPANY_CODES[defaultCompany] : '')
+
+  if (isMobileDevice()) {
+    let url = `https://m.kuaidi100.com/app/query/?coname=${KUAIDI100_CONAME}&nu=${item.number}`
+    if (companyCode) {
+      url += `&com=${companyCode}`
+    }
+    return url
+  }
+
+  // Desktop URL
+  if (companyCode) {
+    return `https://www.kuaidi100.com/chaxun?com=${companyCode}&nu=${item.number}`
+  }
+  return `https://www.kuaidi100.com/chaxun?nu=${item.number}`
 }

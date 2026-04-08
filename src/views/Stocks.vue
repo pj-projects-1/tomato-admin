@@ -64,8 +64,8 @@
         </el-table-column>
         <el-table-column prop="quantity" label="数量" width="80" align="center">
           <template #default="{ row }">
-            <span :style="{ color: row.type === 'in' ? '#67c23a' : row.type === 'out' ? '#f56c6c' : '#e6a23c' }">
-              {{ row.type === 'in' ? '+' : '-' }}{{ row.quantity }}
+            <span :style="{ color: row.type === 'in' || (row.type === 'adjust' && row.quantity > 0) ? '#67c23a' : '#f56c6c' }">
+              {{ row.quantity >= 0 ? '+' : '' }}{{ row.quantity }}
             </span>
           </template>
         </el-table-column>
@@ -125,8 +125,8 @@
             <el-tag :type="getTypeColor(row.type)" size="small">
               {{ getTypeText(row.type) }}
             </el-tag>
-            <span class="quantity" :style="{ color: row.type === 'in' ? '#67c23a' : row.type === 'out' ? '#f56c6c' : '#e6a23c' }">
-              {{ row.type === 'in' ? '+' : '-' }}{{ row.quantity }}箱
+            <span class="quantity" :style="{ color: row.type === 'in' || (row.type === 'adjust' && row.quantity > 0) ? '#67c23a' : '#f56c6c' }">
+              {{ row.quantity >= 0 ? '+' : '' }}{{ row.quantity }}箱
             </span>
             <span class="balance">余额: {{ row.balance_after }}</span>
           </div>

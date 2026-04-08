@@ -57,7 +57,7 @@
         @change="handleFilter"
       >
         <el-option label="未确认" value="pending" />
-        <el-option label="待配送" value="confirmed" />
+        <el-option label="未完成" value="confirmed" />
         <el-option label="配送中" value="delivering" />
         <el-option label="已完成" value="completed" />
         <el-option label="已取消" value="cancelled" />
@@ -110,10 +110,10 @@
                 <el-table-column label="方式" width="70" align="center">
                   <template #default="{ row: delivery }">
                     <el-tag
-                      :type="delivery.delivery_method === 'express' ? 'warning' : 'primary'"
+                      :type="delivery.delivery_method === 'express' ? 'warning' : delivery.delivery_method === 'pickup' ? 'success' : 'primary'"
                       size="small"
                     >
-                      {{ delivery.delivery_method === 'express' ? '快递' : '自送' }}
+                      {{ delivery.delivery_method === 'express' ? '快递' : delivery.delivery_method === 'pickup' ? '自提' : '自送' }}
                     </el-tag>
                   </template>
                 </el-table-column>
@@ -154,22 +154,63 @@
                     <span v-else class="text-muted">-</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="运单号" width="140">
+                <el-table-column label="运单号" min-width="200">
                   <template #default="{ row: delivery }">
-                    <div v-if="delivery.delivery_method === 'express' && delivery.tracking_number" class="tracking-cell">
-                      <a
-                        :href="getTrackingUrl(delivery.express_company, delivery.tracking_number)"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="tracking-link"
-                      >{{ delivery.tracking_number }}</a>
-                      <el-button
-                        link
-                        size="small"
-                        @click="handleCopyTracking(delivery.tracking_number)"
-                      >
-                        <el-icon><CopyDocument /></el-icon>
-                      </el-button>
+                    <div v-if="delivery.delivery_method === 'express'" class="tracking-cell">
+                      <template v-if="getTrackingNumbers(delivery).length > 0">
+                        <div class="tracking-main-row">
+                          <a
+                            :href="getTrackingUrl(
+                              getTrackingNumbers(delivery)[0]?.carrier || delivery.express_company,
+                              getTrackingNumbers(delivery)[0]?.number || ''
+                            )"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="tracking-link"
+                          >{{ getTrackingNumbers(delivery)[0]?.number || '' }}</a>
+                          <el-button
+                            link
+                            size="small"
+                            @click="handleCopyTracking(getTrackingNumbers(delivery)[0]?.number || '')"
+                          >
+                            <el-icon><CopyDocument /></el-icon>
+                          </el-button>
+                          <el-button
+                            v-if="getTrackingNumbers(delivery).length > 1"
+                            link
+                            size="small"
+                            type="primary"
+                            @click="toggleOrdersTrackingExpand(delivery.id)"
+                          >
+                            +{{ getTrackingNumbers(delivery).length - 1 }}个
+                          </el-button>
+                        </div>
+                        <div
+                          v-if="expandedTrackingDeliveries.has(delivery.id) && getTrackingNumbers(delivery).length > 1"
+                          class="tracking-extra-list"
+                        >
+                          <div
+                            v-for="(item, idx) in getTrackingNumbers(delivery).slice(1)"
+                            :key="item.number"
+                            class="tracking-extra-item"
+                          >
+                            <a
+                              :href="getTrackingUrl(item.carrier || delivery.express_company, item.number)"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="tracking-link"
+                            >{{ item.number }}</a>
+                            <el-button
+                              link
+                              size="small"
+                              @click="handleCopyTracking(item.number)"
+                            >
+                              <el-icon><CopyDocument /></el-icon>
+                            </el-button>
+                          </div>
+                        </div>
+                      </template>
+                      <span v-else class="text-muted">-</span>
                     </div>
                     <span v-else class="text-muted">-</span>
                   </template>
@@ -208,11 +249,14 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="deliveries" label="配送" min-width="110" align="center">
+        <el-table-column prop="deliveries" label="配送" min-width="140" align="center">
           <template #default="{ row }">
             <div class="delivery-badges">
               <el-tag v-if="getSelfDeliveryCount(row.deliveries) > 0" type="primary" size="small">
                 自送{{ getSelfDeliveryCount(row.deliveries) }}
+              </el-tag>
+              <el-tag v-if="getPickupDeliveryCount(row.deliveries) > 0" type="success" size="small">
+                自提{{ getPickupDeliveryCount(row.deliveries) }}
               </el-tag>
               <el-tag v-if="getExpressDeliveryCount(row.deliveries) > 0" type="warning" size="small">
                 快递{{ getExpressDeliveryCount(row.deliveries) }}
@@ -250,44 +294,50 @@
           共 {{ totalOrders }} 条
         </div>
 
-        <RecycleScroller
+        <DynamicScroller
           v-if="orderStore.orders.length > 0"
           class="mobile-scroller"
           :items="orderStore.orders"
-          :item-size="160"
+          :min-item-size="150"
           key-field="id"
-          v-slot="{ item }"
+          v-slot="{ item, active }"
         >
-          <div class="order-mobile-card">
-            <div class="card-header-row">
-              <span class="order-number-mobile">{{ item.order_number || item.id.slice(0, 8) }}</span>
-              <el-tag size="small" :style="{ backgroundColor: getStatusBgColor(item.status), color: getStatusColor(item.status), border: 'none' }">
-                {{ getStatusText(item.status) }}
-              </el-tag>
-            </div>
-            <div class="card-customer">{{ item.customer?.name || '-' }}</div>
-            <div class="card-info-row">
-              <span class="amount">¥{{ item.total_amount || 0 }}</span>
-              <span>{{ item.total_boxes }}箱</span>
-              <el-tag :type="item.paid ? 'success' : 'warning'" size="small">
-                {{ item.paid ? '已付' : '未付' }}
-              </el-tag>
-            </div>
-            <div class="card-footer">
-              <span class="time">{{ formatDate(item.created_at) }}</span>
-              <div class="delivery-badges-mobile">
-                <span v-if="getSelfDeliveryCount(item.deliveries) > 0" class="badge-self">自送{{ getSelfDeliveryCount(item.deliveries) }}</span>
-                <span v-if="getExpressDeliveryCount(item.deliveries) > 0" class="badge-express">快递{{ getExpressDeliveryCount(item.deliveries) }}</span>
+          <DynamicScrollerItem
+            :item="item"
+            :active="active"
+            :size-dependencies="[item.note, item.total_amount, item.deliveries?.length]"
+          >
+            <div class="order-mobile-card">
+              <div class="card-header-row">
+                <span class="order-number-mobile">{{ item.order_number || item.id.slice(0, 8) }}</span>
+                <el-tag size="small" :style="{ backgroundColor: getStatusBgColor(item.status), color: getStatusColor(item.status), border: 'none' }">
+                  {{ getStatusText(item.status) }}
+                </el-tag>
+              </div>
+              <div class="card-customer">{{ item.customer?.name || '-' }}</div>
+              <div class="card-info-row">
+                <span class="amount">¥{{ item.total_amount || 0 }}</span>
+                <span>{{ item.total_boxes }}箱</span>
+                <el-tag :type="item.paid ? 'success' : 'warning'" size="small">
+                  {{ item.paid ? '已付' : '未付' }}
+                </el-tag>
+              </div>
+              <div class="card-footer">
+                <span class="time">{{ formatDate(item.created_at) }}</span>
+                <div class="delivery-badges-mobile">
+                  <span v-if="getSelfDeliveryCount(item.deliveries) > 0" class="badge-self">自送{{ getSelfDeliveryCount(item.deliveries) }}</span>
+                  <span v-if="getExpressDeliveryCount(item.deliveries) > 0" class="badge-express">快递{{ getExpressDeliveryCount(item.deliveries) }}</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <el-button size="small" type="primary" link @click.stop="viewOrder(item)">详情</el-button>
+                <el-button v-if="item.status === 'pending'" size="small" type="success" @click.stop="confirmOrder(item)">确认</el-button>
+                <el-button v-if="!item.paid" size="small" type="warning" @click.stop="markPaid(item)">收款</el-button>
+                <el-button v-if="item.status === 'pending'" size="small" type="danger" @click.stop="cancelOrder(item)">删除</el-button>
               </div>
             </div>
-            <div class="card-actions">
-              <el-button size="small" type="primary" link @click.stop="viewOrder(item)">详情</el-button>
-              <el-button v-if="item.status === 'pending'" size="small" type="success" @click.stop="confirmOrder(item)">确认</el-button>
-              <el-button v-if="!item.paid" size="small" type="warning" @click.stop="markPaid(item)">收款</el-button>
-              <el-button v-if="item.status === 'pending'" size="small" type="danger" @click.stop="cancelOrder(item)">删除</el-button>
-            </div>
-          </div>
-        </RecycleScroller>
+          </DynamicScrollerItem>
+        </DynamicScroller>
 
         <el-empty v-if="orderStore.orders.length === 0" description="暂无订单" />
       </div>
@@ -317,6 +367,20 @@
         :rules="rules"
         label-width="80px"
       >
+        <!-- Stock Info Banner -->
+        <div class="stock-banner" :class="{ 'is-warning': !stockStatus.sufficient }">
+          <span class="stock-label">当前库存</span>
+          <span class="stock-value">{{ stockStatus.stock }}箱</span>
+          <span class="stock-divider">|</span>
+          <span class="stock-label">本单需求</span>
+          <span class="stock-value" :class="{ 'text-danger': !stockStatus.sufficient }">
+            {{ stockStatus.needed }}箱
+          </span>
+          <el-icon v-if="!stockStatus.sufficient" class="stock-warning-icon">
+            <WarningFilled />
+          </el-icon>
+        </div>
+
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="客户" prop="customer_id">
@@ -411,6 +475,7 @@
               <el-radio-group v-model="delivery.delivery_method">
                 <el-radio value="self">自送</el-radio>
                 <el-radio value="express">快递</el-radio>
+                <el-radio value="pickup">自提</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-row v-if="delivery.delivery_method === 'express'" :gutter="12">
@@ -462,7 +527,7 @@
                 </el-form-item>
               </el-col>
             </el-row>
-            <el-form-item label="地址" required>
+            <el-form-item v-if="delivery.delivery_method !== 'pickup'" label="地址" required>
               <AddressSelector
                 v-model="delivery.address"
                 v-model:location="delivery.location"
@@ -529,6 +594,7 @@ import type { FormInstance, FormRules, TableInstance } from 'element-plus'
 import dayjs from 'dayjs'
 import { useOrderStore } from '@/stores/orders'
 import { useCustomerStore } from '@/stores/customers'
+import { useStockStore } from '@/stores/stocks'
 import { exportOrders } from '@/api/export'
 import { usePullRefresh } from '@/composables/usePullRefresh'
 import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
@@ -541,12 +607,14 @@ import {
   getExpressBgColor,
   copyTrackingNumber as copyTracking,
   getTrackingUrl,
+  getTrackingNumbers,
 } from '@/api/express'
 
 const router = useRouter()
 const route = useRoute()
 const orderStore = useOrderStore()
 const customerStore = useCustomerStore()
+const stockStore = useStockStore()
 
 // Pull to refresh setup
 const pageContainerRef = ref<HTMLElement | null>(null)
@@ -564,6 +632,17 @@ const {
 // Pagination
 const currentPage = ref(1)
 const pageSize = 20
+
+// Multi-tracking numbers expand state
+const expandedTrackingDeliveries = ref(new Set<string>())
+
+function toggleOrdersTrackingExpand(deliveryId: string) {
+  if (expandedTrackingDeliveries.value.has(deliveryId)) {
+    expandedTrackingDeliveries.value.delete(deliveryId)
+  } else {
+    expandedTrackingDeliveries.value.add(deliveryId)
+  }
+}
 
 // Computed for pagination
 const totalOrders = computed(() => orderStore.orders.length)
@@ -647,6 +726,14 @@ const remainingBoxes = computed(() =>
   form.total_boxes - totalDeliveryBoxes.value
 )
 
+// 库存状态 - 用于订单创建时的实时校验
+const stockStatus = computed(() => {
+  const stock = stockStore.currentBalance
+  const needed = form.total_boxes || 0
+  const sufficient = stock >= needed
+  return { stock, needed, sufficient }
+})
+
 // 监听总箱数变化，自动同步配送数量
 watch(() => form.total_boxes, (newTotal) => {
   if (form.deliveries.length === 1 && form.deliveries[0]) {
@@ -691,6 +778,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   cleanupListeners()
+  // Cleanup tracking expand state
+  expandedTrackingDeliveries.value.clear()
 })
 
 async function handleFilter() {
@@ -786,7 +875,7 @@ function getStatusBgColor(status: OrderStatus) {
 function getStatusText(status: OrderStatus) {
   const map: Record<OrderStatus, string> = {
     pending: '未确认',
-    confirmed: '待配送',
+    confirmed: '未完成',
     delivering: '配送中',
     completed: '已完成',
     cancelled: '已取消',
@@ -794,8 +883,11 @@ function getStatusText(status: OrderStatus) {
   return map[status] || status
 }
 
-// Delivery status helpers - use express_status for express, status for self
+// Delivery status helpers - use express_status for express, pickup_status for pickup, status for self
 function getDeliveryDisplayText(delivery: OrderDelivery): string {
+  if (delivery.delivery_method === 'pickup') {
+    return getPickupStatusText(delivery.pickup_status || 'pending')
+  }
   if (delivery.delivery_method === 'express') {
     // Default to first status if express_status not set
     return getExpressStatusText(delivery.express_status || 'pending_pack')
@@ -811,6 +903,9 @@ function getDeliveryDisplayText(delivery: OrderDelivery): string {
 }
 
 function getDeliveryDisplayColor(delivery: OrderDelivery): string {
+  if (delivery.delivery_method === 'pickup') {
+    return getPickupStatusColor(delivery.pickup_status || 'pending')
+  }
   if (delivery.delivery_method === 'express') {
     return getExpressStatusColor(delivery.express_status || 'pending_pack')
   }
@@ -825,6 +920,9 @@ function getDeliveryDisplayColor(delivery: OrderDelivery): string {
 }
 
 function getDeliveryDisplayBgColor(delivery: OrderDelivery): string {
+  if (delivery.delivery_method === 'pickup') {
+    return getPickupBgColor(delivery.pickup_status || 'pending')
+  }
   if (delivery.delivery_method === 'express') {
     return getExpressBgColor(delivery.express_status || 'pending_pack')
   }
@@ -838,12 +936,41 @@ function getDeliveryDisplayBgColor(delivery: OrderDelivery): string {
   return map[delivery.status] || '#F4F4F5'
 }
 
+// Pickup status helpers
+function getPickupStatusText(status: string): string {
+  const map: Record<string, string> = {
+    pending: '未自提',
+    picked_up: '已自提',
+  }
+  return map[status] || status
+}
+
+function getPickupStatusColor(status: string): string {
+  const map: Record<string, string> = {
+    pending: '#e6a23c',
+    picked_up: '#67c23a',
+  }
+  return map[status] || '#909399'
+}
+
+function getPickupBgColor(status: string): string {
+  const map: Record<string, string> = {
+    pending: '#fdf6ec',
+    picked_up: '#f0f9eb',
+  }
+  return map[status] || '#f5f7fa'
+}
+
 function getSelfDeliveryCount(deliveries?: OrderDelivery[]): number {
-  return deliveries?.filter(d => d.delivery_method !== 'express').length || 0
+  return deliveries?.filter(d => d.delivery_method === 'self').length || 0
 }
 
 function getExpressDeliveryCount(deliveries?: OrderDelivery[]): number {
   return deliveries?.filter(d => d.delivery_method === 'express').length || 0
+}
+
+function getPickupDeliveryCount(deliveries?: OrderDelivery[]): number {
+  return deliveries?.filter(d => d.delivery_method === 'pickup').length || 0
 }
 
 function getExpressCompanyName(code?: string): string {
@@ -862,6 +989,8 @@ async function handleCopyTracking(trackingNumber: string) {
 }
 
 async function showAddDialog() {
+  // Fetch current stock for validation
+  await stockStore.fetchCurrentBalance()
   Object.assign(form, {
     customer_id: '',
     total_boxes: 1,
@@ -909,6 +1038,12 @@ function removeDelivery(index: number) {
 async function handleSubmit() {
   const valid = await formRef.value?.validate()
   if (!valid) return
+
+  // Check stock before submit
+  if (!stockStatus.value.sufficient) {
+    ElMessage.warning(`库存不足！当前 ${stockStatus.value.stock} 箱，需要 ${stockStatus.value.needed} 箱`)
+    return
+  }
 
   if (remainingBoxes.value !== 0) {
     if (remainingBoxes.value > 0) {
@@ -1124,6 +1259,45 @@ async function batchDelete() {
   color: #303133;
 }
 
+/* Stock banner in order dialog */
+.stock-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  background: #f0f9eb;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.stock-banner.is-warning {
+  background: #fef0f0;
+}
+
+.stock-label {
+  color: #909399;
+}
+
+.stock-value {
+  font-weight: 600;
+  color: #303133;
+}
+
+.stock-value.text-danger {
+  color: #f56c6c;
+}
+
+.stock-divider {
+  color: #dcdfe6;
+  margin: 0 4px;
+}
+
+.stock-warning-icon {
+  color: #f56c6c;
+  margin-left: auto;
+}
+
 .pagination-container {
   display: flex;
   justify-content: center;
@@ -1307,6 +1481,38 @@ async function batchDelete() {
 /* Mobile card list - hidden on desktop */
 .mobile-card-list {
   display: none;
+}
+
+.tracking-cell {
+  display: flex;
+  flex-direction: column;
+  margin-left: -8px;
+  padding-left: 8px;
+}
+
+.tracking-main-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tracking-main-row .tracking-link {
+  flex-shrink: 0;
+}
+
+.tracking-extra-list {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed #e4e7ed;
+}
+
+.tracking-extra-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  padding-left: 8px;
 }
 
 /* Mobile responsive styles */

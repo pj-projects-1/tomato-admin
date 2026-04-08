@@ -74,7 +74,7 @@
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120">
+        <el-table-column label="操作" width="180">
           <template #default="{ row }">
             <el-button
               link
@@ -83,6 +83,14 @@
               :disabled="resettingPassword === row.id"
             >
               {{ resettingPassword === row.id ? '发送中...' : '重置密码' }}
+            </el-button>
+            <el-button
+              v-if="isAdmin && row.id !== authStore.user?.id"
+              link
+              type="danger"
+              @click="showDeleteDialog(row)"
+            >
+              删除
             </el-button>
           </template>
         </el-table-column>
@@ -133,6 +141,14 @@
               :loading="resettingPassword === user.id"
             >
               重置密码
+            </el-button>
+            <el-button
+              v-if="isAdmin && user.id !== authStore.user?.id"
+              size="small"
+              type="danger"
+              @click="showDeleteDialog(user)"
+            >
+              删除
             </el-button>
           </div>
         </div>
@@ -274,14 +290,63 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- Delete User Confirmation Dialog -->
+    <el-dialog
+      v-model="deleteDialogVisible"
+      title="删除用户"
+      width="450px"
+      destroy-on-close
+    >
+      <div class="delete-user-content">
+        <el-icon class="danger-icon"><CircleCloseFilled /></el-icon>
+        <p class="delete-title">确定要删除此用户吗？</p>
+        <div class="user-info-box">
+          <p><strong>姓名：</strong>{{ deleteUser?.name }}</p>
+          <p><strong>邮箱：</strong>{{ deleteUser?.email }}</p>
+          <p><strong>角色：</strong>{{ deleteUser?.role === 'admin' ? '管理员' : '员工' }}</p>
+        </div>
+        <el-alert
+          type="error"
+          title="此操作不可恢复"
+          :closable="false"
+          show-icon
+          style="margin-top: 12px;"
+        >
+          <template #default>
+            <p style="margin: 0;">用户将被永久删除，包括：</p>
+            <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+              <li>登录账户</li>
+              <li>个人资料</li>
+            </ul>
+            <p style="margin: 8px 0 0 0;">该用户创建的订单、库存记录等数据将保留。</p>
+          </template>
+        </el-alert>
+        <div class="confirm-input-section">
+          <p>请输入用户邮箱 <strong>{{ deleteUser?.email }}</strong> 以确认删除：</p>
+          <el-input v-model="deleteConfirmInput" placeholder="输入邮箱确认删除" />
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="deleteDialogVisible = false">取消</el-button>
+        <el-button
+          type="danger"
+          :loading="deletingUser"
+          :disabled="deleteConfirmInput !== deleteUser?.email"
+          @click="confirmDeleteUser"
+        >
+          确认删除
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { Plus, Lock, WarningFilled } from '@element-plus/icons-vue'
+import { Plus, Lock, WarningFilled, CircleCloseFilled } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { supabase } from '@/api/supabase'
 import { useAuthStore } from '@/stores/auth'
@@ -290,6 +355,9 @@ import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
 import type { Profile } from '@/types'
 
 const authStore = useAuthStore()
+
+// Admin check
+const isAdmin = computed(() => authStore.profile?.role === 'admin')
 
 // Pull to refresh setup
 const pageContainerRef = ref<HTMLElement | null>(null)
@@ -362,6 +430,12 @@ const pendingRole = ref<'admin' | 'staff'>('staff')
 // Reset password dialog
 const resetPasswordDialogVisible = ref(false)
 const resetPasswordUser = ref<Profile | null>(null)
+
+// Delete user dialog
+const deleteDialogVisible = ref(false)
+const deleteUser = ref<Profile | null>(null)
+const deleteConfirmInput = ref('')
+const deletingUser = ref(false)
 
 onMounted(() => {
   fetchUsers()
@@ -585,6 +659,68 @@ async function confirmResetPassword() {
     resettingPassword.value = null
   }
 }
+
+// Delete user
+function showDeleteDialog(user: Profile) {
+  // Safety check: cannot delete yourself
+  if (user.id === authStore.user?.id) {
+    ElMessage.warning('无法删除自己的账户')
+    return
+  }
+
+  // Safety check: cannot delete if this is the last admin
+  if (user.role === 'admin') {
+    const adminCount = users.value.filter(u => u.role === 'admin').length
+    if (adminCount <= 1) {
+      ElMessage.warning('无法删除最后一个管理员账户')
+      return
+    }
+  }
+
+  deleteUser.value = user
+  deleteConfirmInput.value = ''
+  deleteDialogVisible.value = true
+}
+
+async function confirmDeleteUser() {
+  if (!deleteUser.value) return
+
+  // Double-check email confirmation
+  if (deleteConfirmInput.value !== deleteUser.value.email) {
+    ElMessage.error('邮箱输入不正确')
+    return
+  }
+
+  deletingUser.value = true
+  try {
+    const userId = deleteUser.value.id
+
+    // Call the delete_user RPC function
+    const { data, error } = await supabase.rpc('delete_user', {
+      target_user_id: userId
+    })
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    // Check the result
+    if (data && !data.success) {
+      throw new Error(data.error || '删除失败')
+    }
+
+    // Remove from local state
+    users.value = users.value.filter(u => u.id !== userId)
+
+    ElMessage.success('用户已删除')
+    deleteDialogVisible.value = false
+  } catch (error) {
+    console.error('Delete user error:', error)
+    ElMessage.error((error as Error).message || '删除用户失败')
+  } finally {
+    deletingUser.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -732,5 +868,51 @@ async function confirmResetPassword() {
   color: #909399;
   font-size: 13px;
   margin-top: 8px;
+}
+
+/* Delete user dialog styles */
+.delete-user-content {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.delete-user-content .danger-icon {
+  font-size: 56px;
+  color: #f56c6c;
+  margin-bottom: 12px;
+}
+
+.delete-user-content .delete-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+  margin: 0 0 16px 0;
+}
+
+.delete-user-content .user-info-box {
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 12px 16px;
+  text-align: left;
+  margin: 0 auto 16px;
+}
+
+.delete-user-content .user-info-box p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #606266;
+}
+
+.delete-user-content .confirm-input-section {
+  text-align: left;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #ebeef5;
+}
+
+.delete-user-content .confirm-input-section p {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #606266;
 }
 </style>

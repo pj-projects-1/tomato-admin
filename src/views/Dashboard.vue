@@ -6,7 +6,7 @@
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
             <div class="stats-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-              <el-icon :size="28"><ShoppingCart /></el-icon>
+              <el-icon :size="32"><ShoppingCart /></el-icon>
             </div>
             <div class="stats-info">
               <div class="stats-label">今日销售额</div>
@@ -23,7 +23,7 @@
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
             <div class="stats-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-              <el-icon :size="28"><Money /></el-icon>
+              <el-icon :size="32"><Money /></el-icon>
             </div>
             <div class="stats-info">
               <div class="stats-label">本月销售额</div>
@@ -40,7 +40,7 @@
         <el-card shadow="hover" class="stats-card clickable" @click="$router.push('/stocks')">
           <div class="stats-content">
             <div class="stats-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-              <el-icon :size="28"><Box /></el-icon>
+              <el-icon :size="32"><Box /></el-icon>
             </div>
             <div class="stats-info">
               <div class="stats-label">当前库存</div>
@@ -55,7 +55,7 @@
         <el-card shadow="hover" class="stats-card pending-card">
           <div class="stats-content">
             <div class="stats-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
-              <el-icon :size="28"><Warning /></el-icon>
+              <el-icon :size="32"><Warning /></el-icon>
             </div>
             <div class="stats-info">
               <div class="stats-label">待处理</div>
@@ -74,6 +74,9 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- Today's Tasks Section -->
+    <TodayTasks />
 
     <!-- 销售收益对比 -->
     <el-row :gutter="20">
@@ -181,28 +184,38 @@
           </template>
           <!-- Desktop table -->
           <el-table :data="recentOrders" style="width: 100%" class="desktop-table">
-            <el-table-column label="客户" prop="customer.name" min-width="100">
+            <el-table-column label="客户" prop="customer.name" min-width="80">
               <template #default="{ row }">
                 {{ row.customer?.name || '-' }}
               </template>
             </el-table-column>
-            <el-table-column label="金额" prop="total_amount" width="100">
+            <el-table-column label="订单号" prop="order_number" min-width="130">
+              <template #default="{ row }">
+                <span class="order-num">{{ row.order_number || row.id.slice(0, 8) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="箱数" prop="total_boxes" width="60" align="center">
+              <template #default="{ row }">
+                {{ row.total_boxes }}
+              </template>
+            </el-table-column>
+            <el-table-column label="金额" prop="total_amount" width="80">
               <template #default="{ row }">
                 <span :class="{ 'unpaid-text': !row.paid }">
                   ¥{{ row.total_amount || 0 }}
                 </span>
               </template>
             </el-table-column>
-            <el-table-column label="状态" prop="status" width="90">
+            <el-table-column label="状态" prop="status" width="70">
               <template #default="{ row }">
                 <el-tag :type="getStatusType(row.status)" size="small">
                   {{ getStatusText(row.status) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="时间" prop="created_at" width="120">
+            <el-table-column label="日期" prop="created_at" width="90">
               <template #default="{ row }">
-                {{ formatTime(row.created_at) }}
+                {{ formatDate(row.created_at) }}
               </template>
             </el-table-column>
           </el-table>
@@ -214,8 +227,12 @@
                 <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusText(row.status) }}</el-tag>
               </div>
               <div class="mini-card-row">
+                <span class="order-num-mobile">{{ row.order_number || row.id.slice(0, 8) }}</span>
+                <span class="boxes">{{ row.total_boxes }}箱</span>
+                <span class="date">{{ formatDate(row.created_at) }}</span>
+              </div>
+              <div class="mini-card-row">
                 <span class="amount" :class="{ 'unpaid-text': !row.paid }">¥{{ row.total_amount || 0 }}</span>
-                <span class="time">{{ formatTime(row.created_at) }}</span>
               </div>
             </div>
           </div>
@@ -245,8 +262,8 @@
             </el-table-column>
             <el-table-column label="数量" prop="quantity" width="80">
               <template #default="{ row }">
-                <span :class="row.type === 'in' ? 'stock-in' : row.type === 'out' ? 'stock-out' : ''">
-                  {{ row.type === 'out' ? '-' : '+' }}{{ row.quantity }}
+                <span :class="row.type === 'in' || (row.type === 'adjust' && row.quantity > 0) ? 'stock-in' : 'stock-out'">
+                  {{ row.type === 'out' ? '-' : (row.quantity > 0 ? '+' : '') }}{{ row.quantity }}
                 </span>
               </template>
             </el-table-column>
@@ -266,8 +283,8 @@
             <div v-for="row in recentStocks" :key="row.id" class="stock-mini-card">
               <div class="mini-card-row">
                 <el-tag :type="getStockType(row.type)" size="small">{{ getStockTypeText(row.type) }}</el-tag>
-                <span class="quantity" :class="row.type === 'in' ? 'stock-in' : row.type === 'out' ? 'stock-out' : ''">
-                  {{ row.type === 'out' ? '-' : '+' }}{{ row.quantity }}箱
+                <span class="quantity" :class="row.type === 'in' || (row.type === 'adjust' && row.quantity > 0) ? 'stock-in' : 'stock-out'">
+                  {{ row.type === 'out' ? '-' : (row.quantity > 0 ? '+' : '') }}{{ row.quantity }}箱
                 </span>
                 <span class="balance">余额: {{ row.balance_after }}</span>
               </div>
@@ -288,6 +305,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useDashboardStore, type SalesStats } from '@/stores/dashboard'
 import type { OrderStatus } from '@/types'
 import dayjs from 'dayjs'
+import TodayTasks from '@/components/TodayTasks.vue'
 
 const dashboardStore = useDashboardStore()
 
@@ -311,7 +329,7 @@ const currentPeriodStats = computed<SalesStats>(() => {
 
 const orderStatusList: { status: OrderStatus; label: string; type: string; color: string }[] = [
   { status: 'pending', label: '未确认', type: 'warning', color: '#e6a23c' },
-  { status: 'confirmed', label: '待配送', type: 'primary', color: '#409eff' },
+  { status: 'confirmed', label: '未完成', type: 'primary', color: '#409eff' },
   { status: 'delivering', label: '配送中', type: 'success', color: '#67c23a' },
   { status: 'completed', label: '已完成', type: 'success', color: '#67c23a' },
   { status: 'cancelled', label: '已取消', type: 'danger', color: '#f56c6c' },
@@ -323,6 +341,10 @@ onMounted(() => {
 
 function formatMoney(value: number) {
   return value.toFixed(2)
+}
+
+function formatDate(date: string) {
+  return dayjs(date).format('MM-DD')
 }
 
 function formatTime(date: string) {
@@ -364,7 +386,7 @@ function getStatusType(status: OrderStatus) {
 function getStatusText(status: OrderStatus) {
   const map: Record<OrderStatus, string> = {
     pending: '未确认',
-    confirmed: '待配送',
+    confirmed: '未完成',
     delivering: '配送中',
     completed: '已完成',
     cancelled: '已取消',
@@ -401,7 +423,7 @@ function getStockTypeText(type: string) {
 }
 
 .stats-card {
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .stats-card.clickable {
@@ -424,9 +446,9 @@ function getStockTypeText(type: string) {
 }
 
 .stats-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -435,26 +457,26 @@ function getStockTypeText(type: string) {
 }
 
 .stats-info {
-  margin-left: 16px;
+  margin-left: 18px;
   flex: 1;
 }
 
 .stats-label {
-  font-size: 14px;
+  font-size: 15px;
   color: #909399;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .stats-value {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 600;
   color: #303133;
 }
 
 .stats-sub {
-  font-size: 12px;
+  font-size: 13px;
   color: #909399;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .stats-sub .paid {
@@ -462,13 +484,13 @@ function getStockTypeText(type: string) {
 }
 
 .pending-card .stats-value {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .pending-value {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .pending-item {
@@ -494,7 +516,7 @@ function getStockTypeText(type: string) {
 }
 
 .pending-text {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   color: #303133;
 }
@@ -615,6 +637,12 @@ function getStockTypeText(type: string) {
 
 .unpaid-text {
   color: #e6a23c;
+}
+
+.order-num {
+  font-family: monospace;
+  font-size: 13px;
+  color: #606266;
 }
 
 .stock-in {
@@ -759,6 +787,22 @@ function getStockTypeText(type: string) {
   .order-mini-card .amount {
     font-weight: 600;
     color: #409eff;
+  }
+
+  .order-mini-card .order-num-mobile {
+    font-family: monospace;
+    font-size: 12px;
+    color: #909399;
+  }
+
+  .order-mini-card .boxes {
+    font-size: 13px;
+    color: #606266;
+  }
+
+  .order-mini-card .date {
+    font-size: 12px;
+    color: #909399;
   }
 
   .stock-mini-card .quantity {

@@ -46,8 +46,16 @@ export async function withErrorHandling<T>(
 
 /**
  * Extracts error message from unknown error type
+ * Handles Supabase error objects which are plain objects, not Error instances
  */
 export function getErrorMessage(error: unknown): string {
+  // Handle Supabase error objects: { message, code, details, hint }
+  if (error && typeof error === 'object') {
+    const supabaseError = error as Record<string, unknown>
+    if (typeof supabaseError.message === 'string') {
+      return supabaseError.message
+    }
+  }
   if (error instanceof Error) {
     return error.message
   }
@@ -62,7 +70,8 @@ export function getErrorMessage(error: unknown): string {
  */
 export function translateDbError(message: string): string {
   const translations: Record<string, string> = {
-    'violates foreign key constraint': '关联数据不存在',
+    'violates foreign key constraint': '无法删除：该客户有关联的订单',
+    'orders_customer_id_fkey': '无法删除：该客户有关联的订单',
     'violates unique constraint': '数据已存在',
     'violates check constraint': '数据格式不正确',
     'permission denied': '没有权限执行此操作',
@@ -70,7 +79,7 @@ export function translateDbError(message: string): string {
   }
 
   for (const [key, value] of Object.entries(translations)) {
-    if (message.toLowerCase().includes(key)) {
+    if (message.toLowerCase().includes(key.toLowerCase())) {
       return value
     }
   }

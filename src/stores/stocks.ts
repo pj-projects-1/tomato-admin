@@ -136,8 +136,8 @@ export const useStockStore = defineStore('stocks', () => {
         .from('stocks')
         .insert({
           type: 'adjust',
-          quantity: Math.abs(quantity),
-          balance_after: currentStock + quantity, // quantity can be negative for reduction
+          quantity: quantity, // Keep the sign - positive for increase, negative for decrease
+          balance_after: currentStock + quantity,
           note: note || '库存调整',
           created_by: user?.id,
         })

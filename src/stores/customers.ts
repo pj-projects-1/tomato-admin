@@ -113,6 +113,19 @@ export const useCustomerStore = defineStore('customers', () => {
   async function deleteCustomer(id: string) {
     loading.value = true
     try {
+      // First check if customer has orders
+      const { data: orders, error: checkError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('customer_id', id)
+        .limit(1)
+
+      if (checkError) throw checkError
+
+      if (orders && orders.length > 0) {
+        return { success: false, error: '无法删除：该客户有关联的订单' }
+      }
+
       const { error } = await supabase
         .from('customers')
         .delete()

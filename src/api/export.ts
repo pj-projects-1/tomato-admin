@@ -39,17 +39,51 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 
 /**
  * 导出客户列表
+ * Customer info appears once, additional addresses fill subsequent rows with empty customer columns
  */
 export function exportCustomers(customers: any[], filenameSuffix = '') {
-  const headers = ['客户名称', '微信号', '电话', '地址数量', '备注', '创建时间']
-  const rows = customers.map(c => [
-    c.name,
-    c.wechat || '',
-    c.phone || '',
-    c.addresses?.length || 0,
-    c.note || '',
-    formatDate(c.created_at),
-  ])
+  const headers = ['客户名称', '微信号', '电话', '地址标签', '收货人', '收货电话', '地址', '备注', '创建时间']
+  const rows: any[][] = []
+
+  customers.forEach(c => {
+    if (c.addresses && c.addresses.length > 0) {
+      // First address: include all customer info
+      const firstAddr = c.addresses[0]
+      rows.push([
+        c.name,
+        c.wechat || '',
+        c.phone || '',
+        firstAddr.label || '',
+        firstAddr.recipient_name || '',
+        firstAddr.recipient_phone || '',
+        firstAddr.address,
+        c.note || '',
+        formatDate(c.created_at),
+      ])
+
+      // Additional addresses: only fill address columns
+      c.addresses.slice(1).forEach((addr: any) => {
+        rows.push([
+          '', '', '',  // Empty customer columns
+          addr.label || '',
+          addr.recipient_name || '',
+          addr.recipient_phone || '',
+          addr.address,
+          '', '',  // Empty note and date
+        ])
+      })
+    } else {
+      // No addresses - just customer info
+      rows.push([
+        c.name,
+        c.wechat || '',
+        c.phone || '',
+        '', '', '', '',
+        c.note || '',
+        formatDate(c.created_at),
+      ])
+    }
+  })
 
   const csv = toCSV(headers, rows)
   downloadFile(csv, `客户列表${filenameSuffix}_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
@@ -264,6 +298,186 @@ export function generateAmapAutoNavLink(
 }
 
 /**
+ * Delivery point with location information
+ */
+export interface DeliveryPoint {
+  location?: { lng: number; lat: number } | null
+  address: string
+}
+
+/**
+ * Generate Amap native URI scheme for direct app launch
+ * Format: amapuri://route/plan/?slat=...&slon=...
+ *
+ * IMPORTANT: We build parameters manually to avoid URLSearchParams encoding the pipe character.
+ * According to Amap documentation, the '|' character must NOT be encoded.
+ *
+ * @param departure - Starting point with coordinates
+ * @param destination - End point with coordinates
+ * @param deliveries - Via points (delivery stops)
+ */
+export function generateAmapUriScheme(
+  departure: { lng: number; lat: number; address: string },
+  destination: { lng: number; lat: number; address: string },
+  deliveries: DeliveryPoint[]
+): string | null {
+  // Filter deliveries with valid coordinates
+  const validDeliveries = deliveries.filter(d => d.location?.lng && d.location?.lat)
+  if (validDeliveries.length === 0) return null
+
+  // Build parameters manually to avoid encoding the pipe character
+  const parts: string[] = []
+
+  // Start point
+  parts.push(`slat=${departure.lat}`)
+  parts.push(`slon=${departure.lng}`)
+  parts.push(`sname=${encodeURIComponent(departure.address || '起点')}`)
+
+  // End point
+  parts.push(`dlat=${destination.lat}`)
+  parts.push(`dlon=${destination.lng}`)
+  parts.push(`dname=${encodeURIComponent(destination.address || '终点')}`)
+
+  // Route type and preferences
+  parts.push('t=0') // 0=driving
+  parts.push('dev=0') // GCJ-02 coordinates
+  parts.push('m=4') // avoid traffic
+
+  // Via points: all valid deliveries become waypoints (up to 16)
+  const viaPoints = validDeliveries.slice(0, 16)
+  if (viaPoints.length > 0) {
+    parts.push(`vian=${viaPoints.length}`)
+    // IMPORTANT: Do NOT encode the pipe character!
+    parts.push(`vialons=${viaPoints.map(d => d.location!.lng).join('|')}`)
+    parts.push(`vialats=${viaPoints.map(d => d.location!.lat).join('|')}`)
+    parts.push(`vianames=${viaPoints.map(d => encodeURIComponent(d.address || '途经点')).join('|')}`)
+  }
+
+  return `amapuri://route/plan/?${parts.join('&')}`
+}
+
+/**
+ * Smart navigation launcher with app fallback
+ * - On mobile: tries amapuri:// app first, falls back to web
+ * - On desktop: opens web version directly
+ *
+ * @param departure - Starting point
+ * @param destination - End point
+ * @param deliveries - Via points
+ * @param onFallback - Optional callback when falling back to web
+ * @param onAppOpened - Optional callback when app successfully opened
+ */
+export function launchAmapNavigation(
+  departure: { lng: number; lat: number; address: string },
+  destination: { lng: number; lat: number; address: string },
+  deliveries: DeliveryPoint[],
+  onFallback?: () => void,
+  onAppOpened?: () => void
+): boolean {
+  // Check if mobile device (includes iPad Pro detection)
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+
+  // Desktop: open web version directly
+  if (!isMobile) {
+    const webLink = generateAmapNavigationLink(departure, destination, deliveries)
+    if (webLink) {
+      window.open(webLink, '_blank')
+      return true
+    }
+    return false
+  }
+
+  // Mobile: try app first with fallback
+  const appLink = generateAmapUriScheme(departure, destination, deliveries)
+  const webLink = generateAmapNavigationLink(departure, destination, deliveries)
+
+  if (!appLink || !webLink) return false
+
+  // Track state to prevent race conditions
+  let hasResolved = false
+  let fallbackTimer: ReturnType<typeof setTimeout> | null = null
+  let cleanupTimer: ReturnType<typeof setTimeout> | null = null
+
+  // Resolve function to ensure we only execute one path
+  const resolve = (opened: boolean) => {
+    if (hasResolved) return
+    hasResolved = true
+
+    // Clear all timers
+    if (fallbackTimer) clearTimeout(fallbackTimer)
+    if (cleanupTimer) clearTimeout(cleanupTimer)
+
+    // Remove event listeners
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+    window.removeEventListener('pagehide', handlePageHide)
+
+    // Execute appropriate callback
+    if (opened) {
+      onAppOpened?.()
+    } else {
+      onFallback?.()
+      // Navigate to web version
+      window.location.href = webLink
+    }
+
+    // Cleanup iframe if it exists
+    if (iframe.parentNode) {
+      document.body.removeChild(iframe)
+    }
+  }
+
+  // Detect if app opened (page becomes hidden)
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      resolve(true)
+    }
+  }
+
+  // Also listen for pagehide (iOS Safari)
+  const handlePageHide = () => {
+    resolve(true)
+  }
+
+  // Add event listeners before attempting to open app
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('pagehide', handlePageHide)
+
+  // Try opening app
+  // Use iframe for Android, window.location for iOS (more reliable)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+
+  const iframe = document.createElement('iframe')
+  iframe.style.display = 'none'
+  document.body.appendChild(iframe)
+
+  if (isIOS) {
+    // iOS: Use window.location.href for better compatibility
+    window.location.href = appLink
+  } else {
+    // Android: Use iframe approach
+    iframe.src = appLink
+  }
+
+  // Fallback timer - if app doesn't open in time, use web link
+  // iOS may need more time for cold app start
+  const fallbackDelay = isIOS ? 800 : 500
+  fallbackTimer = setTimeout(() => {
+    resolve(false)
+  }, fallbackDelay)
+
+  // Cleanup timer - force cleanup after maximum wait time
+  cleanupTimer = setTimeout(() => {
+    if (!hasResolved) {
+      resolve(false)
+    }
+  }, 3000)
+
+  return true
+}
+
+/**
  * 复制导航链接到剪贴板
  */
 export async function copyNavigationLink(
@@ -353,7 +567,7 @@ function formatDateFile(): string {
 function getStatusText(status: string): string {
   const map: Record<string, string> = {
     pending: '未确认',
-    confirmed: '待配送',
+    confirmed: '未完成',
     delivering: '配送中',
     completed: '已完成',
     cancelled: '已取消',

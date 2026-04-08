@@ -44,7 +44,7 @@
             </el-tag>
           </template>
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="订单编号">{{ order.id.slice(0, 8) }}</el-descriptions-item>
+            <el-descriptions-item label="订单号">{{ order.order_number }}</el-descriptions-item>
             <el-descriptions-item label="创建时间">{{ formatDateTime(order.created_at) }}</el-descriptions-item>
             <el-descriptions-item label="客户">{{ order.customer?.name }}</el-descriptions-item>
             <el-descriptions-item label="微信">{{ order.customer?.wechat || '-' }}</el-descriptions-item>
@@ -108,6 +108,14 @@
                       快递
                     </el-tag>
                     <el-tag
+                      v-else-if="delivery.delivery_method === 'pickup'"
+                      type="success"
+                      size="small"
+                      class="method-tag"
+                    >
+                      自提
+                    </el-tag>
+                    <el-tag
                       v-else
                       type="primary"
                       size="small"
@@ -141,9 +149,12 @@
                   </div>
                 </div>
                 <div class="delivery-info">
-                  <p><strong>收货人：</strong>{{ delivery.recipient_name || order.customer?.name }}</p>
-                  <p><strong>电话：</strong><PhoneField :phone="delivery.recipient_phone || order.customer?.phone" /></p>
-                  <p><strong>地址：</strong>{{ delivery.address }}</p>
+                  <!-- Only show recipient/address for non-pickup -->
+                  <template v-if="delivery.delivery_method !== 'pickup'">
+                    <p><strong>收货人：</strong>{{ delivery.recipient_name || order.customer?.name }}</p>
+                    <p><strong>电话：</strong><PhoneField :phone="delivery.recipient_phone || order.customer?.phone" /></p>
+                    <p><strong>地址：</strong>{{ delivery.address }}</p>
+                  </template>
                   <p><strong>数量：</strong>{{ delivery.quantity }} 箱</p>
 
                   <!-- Express-specific fields -->
@@ -151,28 +162,57 @@
                     <p v-if="delivery.express_company">
                       <strong>快递公司：</strong>{{ getExpressCompanyName(delivery.express_company) }}
                     </p>
-                    <p v-if="delivery.tracking_number" class="tracking-number-row">
-                      <strong>运单号：</strong>
-                      <a
-                        :href="getTrackingUrl(delivery.express_company, delivery.tracking_number)"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="tracking-link"
-                      >{{ delivery.tracking_number }}</a>
-                      <el-button link size="small" @click="handleCopyTracking(delivery.tracking_number!)">
-                        <el-icon><CopyDocument /></el-icon>
-                      </el-button>
-                    </p>
+                    <!-- Tracking Numbers -->
+                    <div v-if="getTrackingNumbers(delivery).length > 0" class="tracking-numbers-section">
+                      <p class="tracking-label">
+                        <strong>运单号：</strong>
+                      </p>
+                      <div class="tracking-numbers-list">
+                        <div
+                          v-for="(item, index) in getTrackingNumbers(delivery)"
+                          :key="item.number + '-' + index"
+                          class="tracking-number-item"
+                        >
+                          <span class="tracking-index">{{ index + 1 }}.</span>
+                          <a
+                            :href="getTrackingUrlFromItem(item, delivery.express_company)"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="tracking-link"
+                          >{{ item.number }}</a>
+                          <el-tag
+                            v-if="item.carrier && item.carrier !== (delivery.express_company ? EXPRESS_COMPANY_CODES[delivery.express_company] || '' : '')"
+                            size="small"
+                            type="info"
+                            class="company-tag"
+                          >
+                            {{ getExpressCompanyNameByCode(item.carrier) }}
+                          </el-tag>
+                          <el-button
+                            link
+                            size="small"
+                            @click="handleCopyTracking(item.number)"
+                          >
+                            <el-icon><CopyDocument /></el-icon>
+                          </el-button>
+                        </div>
+                      </div>
+                    </div>
                     <p v-if="delivery.weight"><strong>重量：</strong>{{ delivery.weight }} kg</p>
                     <p v-if="delivery.packed_at"><strong>包装时间：</strong>{{ formatShortDate(delivery.packed_at) }}</p>
                     <p v-if="delivery.shipped_at"><strong>发货时间：</strong>{{ formatShortDate(delivery.shipped_at) }}</p>
+                  </template>
+
+                  <!-- Pickup-specific fields -->
+                  <template v-if="delivery.delivery_method === 'pickup' && delivery.picked_up_at">
+                    <p><strong>自提时间：</strong>{{ formatShortDate(delivery.picked_up_at) }}</p>
                   </template>
 
                   <p v-if="delivery.delivery_note"><strong>备注：</strong>{{ delivery.delivery_note }}</p>
                 </div>
 
                 <!-- Self delivery: mark delivered button -->
-                <div v-if="delivery.delivery_method !== 'express' && delivery.status !== 'delivered'" class="delivery-actions">
+                <div v-if="delivery.delivery_method === 'self' && delivery.status !== 'delivered'" class="delivery-actions">
                   <el-button
                     size="small"
                     type="success"
@@ -182,12 +222,23 @@
                   </el-button>
                 </div>
 
+                <!-- Pickup: mark picked up button -->
+                <div v-if="delivery.delivery_method === 'pickup' && delivery.pickup_status !== 'picked_up'" class="delivery-actions">
+                  <el-button
+                    size="small"
+                    type="success"
+                    @click="markPickedUp(delivery)"
+                  >
+                    确认自提
+                  </el-button>
+                </div>
+
                 <!-- Express delivery: link to shipping page -->
                 <div v-if="delivery.delivery_method === 'express' && !isDeliveryCompleted(delivery)" class="delivery-actions">
                   <el-button
                     size="small"
                     type="primary"
-                    @click="goToExpressShipping()"
+                    @click="goToExpressShipping(delivery)"
                   >
                     前往快递发货
                   </el-button>
@@ -207,19 +258,21 @@
       destroy-on-close
     >
       <el-form :model="deliveryForm" label-width="80px">
-        <el-form-item label="收货人">
-          <el-input v-model="deliveryForm.recipient_name" placeholder="留空则使用客户名" />
-        </el-form-item>
-        <el-form-item label="电话">
-          <el-input v-model="deliveryForm.recipient_phone" placeholder="留空则使用客户电话" />
-        </el-form-item>
-        <el-form-item label="地址" required>
-          <AddressInput
-            v-model="deliveryForm.address"
-            v-model:location="deliveryForm.location"
-            placeholder="输入地址搜索..."
-          />
-        </el-form-item>
+        <template v-if="deliveryForm.delivery_method !== 'pickup'">
+          <el-form-item label="收货人">
+            <el-input v-model="deliveryForm.recipient_name" placeholder="留空则使用客户名" />
+          </el-form-item>
+          <el-form-item label="电话">
+            <el-input v-model="deliveryForm.recipient_phone" placeholder="留空则使用客户电话" />
+          </el-form-item>
+          <el-form-item label="地址" required>
+            <AddressInput
+              v-model="deliveryForm.address"
+              v-model:location="deliveryForm.location"
+              placeholder="输入地址搜索..."
+            />
+          </el-form-item>
+        </template>
         <el-form-item label="数量" required>
           <el-input-number
             v-model="deliveryForm.quantity"
@@ -230,6 +283,34 @@
             {{ quantityWarning }}
           </div>
         </el-form-item>
+        <el-form-item label="配送方式">
+          <el-radio-group v-model="deliveryForm.delivery_method">
+            <el-radio value="self">自送</el-radio>
+            <el-radio value="express">快递</el-radio>
+            <el-radio value="pickup">自提</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <template v-if="deliveryForm.delivery_method === 'express'">
+          <el-form-item label="快递公司" required>
+            <el-select v-model="deliveryForm.express_company" placeholder="选择快递公司" style="width: 100%">
+              <el-option
+                v-for="company in expressCompanies"
+                :key="company.code"
+                :label="company.name"
+                :value="company.code"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="预估重量">
+            <el-input-number
+              v-model="deliveryForm.weight"
+              :min="0.1"
+              :step="0.5"
+              :precision="1"
+              style="width: 100%"
+            />
+          </el-form-item>
+        </template>
         <el-form-item label="备注">
           <el-input
             v-model="deliveryForm.delivery_note"
@@ -250,14 +331,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
+import { supabase } from '@/api/supabase'
 import { useOrderStore } from '@/stores/orders'
 import PhoneField from '@/components/PhoneField.vue'
 import AddressInput from '@/components/AddressInput.vue'
-import type { Order, OrderStatus, OrderDelivery, DeliveryStatus, ExpressCompany } from '@/types'
+import type { Order, OrderStatus, OrderDelivery, DeliveryStatus, ExpressCompany, DeliveryMethod, PickupStatus } from '@/types'
 import {
   fetchExpressCompanies,
   getExpressStatusText,
@@ -265,6 +347,9 @@ import {
   getExpressBgColor,
   copyTrackingNumber,
   getTrackingUrl,
+  getTrackingNumbers,
+  getTrackingUrlFromItem,
+  EXPRESS_COMPANY_CODES,
 } from '@/api/express'
 
 const route = useRoute()
@@ -286,6 +371,9 @@ const deliveryForm = reactive({
   quantity: 1,
   location: null as { lng: number; lat: number } | null,
   delivery_note: '',
+  delivery_method: 'self' as DeliveryMethod,
+  express_company: '' as string,
+  weight: undefined as number | undefined,
 })
 
 const maxQuantity = computed(() => {
@@ -318,6 +406,15 @@ const quantityWarning = computed(() => {
   }
   return ''
 })
+// Watch for delivery method changes to clear express fields when switching to self or pickup
+watch(() => deliveryForm.delivery_method, (newMethod, oldMethod) => {
+  if ((newMethod === 'self' || newMethod === 'pickup') && oldMethod === 'express') {
+    // Clear express-related fields when switching from express
+    deliveryForm.express_company = ''
+    deliveryForm.weight = undefined
+  }
+})
+
 
 onMounted(async () => {
   loading.value = true
@@ -377,7 +474,7 @@ function getStatusBgColor(status: OrderStatus) {
 function getStatusText(status: OrderStatus) {
   const map: Record<OrderStatus, string> = {
     pending: '未确认',
-    confirmed: '待配送',
+    confirmed: '未完成',
     delivering: '配送中',
     completed: '已完成',
     cancelled: '已取消',
@@ -425,8 +522,11 @@ function getDeliveryStatusText(status: DeliveryStatus) {
   return map[status] || status
 }
 
-// Unified delivery display helpers - use express_status for express, status for self
+// Unified delivery display helpers - use express_status for express, pickup_status for pickup, status for self
 function getDeliveryDisplayText(delivery: OrderDelivery): string {
+  if (delivery.delivery_method === 'pickup') {
+    return getPickupStatusText(delivery.pickup_status || 'pending')
+  }
   if (delivery.delivery_method === 'express') {
     return getExpressStatusText(delivery.express_status || 'pending_pack')
   }
@@ -434,6 +534,9 @@ function getDeliveryDisplayText(delivery: OrderDelivery): string {
 }
 
 function getDeliveryDisplayColor(delivery: OrderDelivery): string {
+  if (delivery.delivery_method === 'pickup') {
+    return getPickupStatusColor(delivery.pickup_status || 'pending')
+  }
   if (delivery.delivery_method === 'express') {
     return getExpressStatusColor(delivery.express_status || 'pending_pack')
   }
@@ -441,6 +544,9 @@ function getDeliveryDisplayColor(delivery: OrderDelivery): string {
 }
 
 function getDeliveryDisplayBgColor(delivery: OrderDelivery): string {
+  if (delivery.delivery_method === 'pickup') {
+    return getPickupBgColor(delivery.pickup_status || 'pending')
+  }
   if (delivery.delivery_method === 'express') {
     return getExpressBgColor(delivery.express_status || 'pending_pack')
   }
@@ -448,6 +554,13 @@ function getDeliveryDisplayBgColor(delivery: OrderDelivery): string {
 }
 
 function getDeliveryTimelineType(delivery: OrderDelivery): string {
+  if (delivery.delivery_method === 'pickup') {
+    const map: Record<string, string> = {
+      pending: 'warning',
+      picked_up: 'success',
+    }
+    return map[delivery.pickup_status || 'pending'] || 'info'
+  }
   if (delivery.delivery_method === 'express' && delivery.express_status) {
     const map: Record<string, string> = {
       pending_pack: 'info',
@@ -463,16 +576,55 @@ function getDeliveryTimelineType(delivery: OrderDelivery): string {
 }
 
 function isDeliveryCompleted(delivery: OrderDelivery): boolean {
+  if (delivery.delivery_method === 'pickup') {
+    return delivery.pickup_status === 'picked_up'
+  }
   if (delivery.delivery_method === 'express') {
     return delivery.express_status === 'delivered'
   }
   return delivery.status === 'delivered'
 }
 
+// Pickup status helpers
+function getPickupStatusText(status: string): string {
+  const map: Record<string, string> = {
+    pending: '未自提',
+    picked_up: '已自提',
+  }
+  return map[status] || status
+}
+
+function getPickupStatusColor(status: string): string {
+  const map: Record<string, string> = {
+    pending: '#e6a23c',
+    picked_up: '#67c23a',
+  }
+  return map[status] || '#909399'
+}
+
+function getPickupBgColor(status: string): string {
+  const map: Record<string, string> = {
+    pending: '#fdf6ec',
+    picked_up: '#f0f9eb',
+  }
+  return map[status] || '#f5f7fa'
+}
+
 function getExpressCompanyName(code?: string): string {
   if (!code) return '-'
   const company = expressCompanies.value.find(c => c.code === code)
   return company?.name || code
+}
+
+function getExpressCompanyNameByCode(code: string): string {
+  if (!code) return '-'
+  // First try to find in expressCompanies
+  const company = expressCompanies.value.find(c => c.code === code)
+  if (company) return company.name
+
+  // If not found, try to map from EXPRESS_COMPANY_CODES
+  const name = Object.keys(EXPRESS_COMPANY_CODES).find(key => EXPRESS_COMPANY_CODES[key] === code)
+  return name || code
 }
 
 function formatShortDate(date: string): string {
@@ -488,8 +640,8 @@ async function handleCopyTracking(trackingNumber: string) {
   }
 }
 
-function goToExpressShipping() {
-  router.push('/deliveries?tab=express')
+function goToExpressShipping(delivery: OrderDelivery) {
+  router.push(`/deliveries?tab=express&highlight=${delivery.id}`)
 }
 
 function getPaymentMethod(method?: string) {
@@ -612,6 +764,39 @@ async function markDelivered(delivery: OrderDelivery) {
   }
 }
 
+async function markPickedUp(delivery: OrderDelivery) {
+  try {
+    await ElMessageBox.confirm('确认该自提订单已取走？', '确认自提')
+    const now = new Date().toISOString()
+    const { error } = await supabase
+      .from('order_deliveries')
+      .update({
+        pickup_status: 'picked_up',
+        picked_up_at: now
+      })
+      .eq('id', delivery.id)
+
+    if (error) throw error
+
+    // Update local state
+    delivery.pickup_status = 'picked_up'
+    delivery.picked_up_at = now
+
+    // Check if order should be completed via store
+    const result = await orderStore.onPickupStatusChanged(delivery.id, 'picked_up')
+    if (result.orderCompleted) {
+      order.value!.status = 'completed'
+      ElMessage.success('订单已完成')
+    }
+
+    ElMessage.success('已确认自提')
+  } catch (e: any) {
+    if (e === 'cancel' || e === 'close') return
+    console.error('Mark picked up error:', e)
+    ElMessage.error(e.message || '操作失败')
+  }
+}
+
 function showEditDeliveryDialog(delivery: OrderDelivery) {
   isAddDelivery.value = false
   editingDeliveryId.value = delivery.id
@@ -622,6 +807,9 @@ function showEditDeliveryDialog(delivery: OrderDelivery) {
     quantity: delivery.quantity,
     location: delivery.location || null,
     delivery_note: delivery.delivery_note || '',
+    delivery_method: delivery.delivery_method || 'self',
+    express_company: delivery.express_company || '',
+    weight: delivery.weight || undefined,
   })
   editDeliveryDialogVisible.value = true
 }
@@ -636,6 +824,9 @@ function showAddDeliveryDialog() {
     quantity: 1,
     location: null,
     delivery_note: '',
+    delivery_method: 'self',
+    express_company: '',
+    weight: undefined,
   })
   editDeliveryDialogVisible.value = true
 }
@@ -643,6 +834,12 @@ function showAddDeliveryDialog() {
 async function saveDelivery() {
   if (!deliveryForm.address) {
     ElMessage.error('请输入地址')
+    return
+  }
+
+  // 验证快递配送必须选择快递公司
+  if (deliveryForm.delivery_method === 'express' && !deliveryForm.express_company) {
+    ElMessage.error('请选择快递公司')
     return
   }
 
@@ -693,6 +890,9 @@ async function saveDelivery() {
         quantity: deliveryForm.quantity,
         location: deliveryForm.location || undefined,
         delivery_note: deliveryForm.delivery_note || undefined,
+        delivery_method: deliveryForm.delivery_method,
+        express_company: deliveryForm.express_company || undefined,
+        weight: deliveryForm.weight || undefined,
       })
       if (result.success) {
         // 如果数量有变化，更新订单总箱数
@@ -716,6 +916,9 @@ async function saveDelivery() {
         quantity: deliveryForm.quantity,
         location: deliveryForm.location || undefined,
         delivery_note: deliveryForm.delivery_note || undefined,
+        delivery_method: deliveryForm.delivery_method,
+        express_company: deliveryForm.express_company || undefined,
+        weight: deliveryForm.weight || undefined,
       })
       if (result.success) {
         // 如果数量有变化，更新订单总箱数和出库数
@@ -881,5 +1084,36 @@ async function deleteDelivery(delivery: OrderDelivery) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.tracking-numbers-section {
+  margin: 8px 0;
+}
+
+.tracking-label {
+  margin-bottom: 4px;
+}
+
+.tracking-numbers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.tracking-number-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tracking-index {
+  color: #909399;
+  font-size: 12px;
+  min-width: 16px;
+}
+
+.company-tag {
+  margin-left: 4px;
 }
 </style>

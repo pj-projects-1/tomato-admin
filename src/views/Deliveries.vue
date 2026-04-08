@@ -12,19 +12,16 @@
       <div class="header-top-row">
         <!-- Desktop: Buttons row -->
         <div class="location-buttons">
-          <el-button @click="showDepartureDialog" :title="departure.address ? '出发地: ' + departure.address : '设置出发地'">
+          <el-button @click="showDepartureDialog">
             <el-icon><Location /></el-icon>
-            <span class="btn-text-full">出发地{{ departure.address ? ': ' + departure.address : '' }}</span>
-            <span class="btn-text-short">出发地</span>
+            <span>出发地{{ departure.address ? ': ' + departure.address : '' }}</span>
           </el-button>
-          <el-button @click="showDestinationDialog" :disabled="isRoundTrip" :title="!isRoundTrip && destination.address ? '结束地: ' + destination.address : '设置结束地'">
+          <el-button @click="showDestinationDialog" :disabled="isRoundTrip">
             <el-icon><Flag /></el-icon>
-            <span class="btn-text-full">结束地{{ !isRoundTrip && destination.address ? ': ' + destination.address : '' }}</span>
-            <span class="btn-text-short">结束地</span>
+            <span>结束地{{ !isRoundTrip && destination.address ? ': ' + destination.address : '' }}</span>
           </el-button>
           <el-checkbox v-model="isRoundTrip" class="roundtrip-checkbox">
-            <span class="btn-text-full">环形</span>
-            <span class="btn-text-short">环形</span>
+            环形
           </el-checkbox>
           <el-button
             type="primary"
@@ -32,34 +29,29 @@
             :disabled="selectedDeliveries.length === 0 || !isLocationsValid"
           >
             <el-icon><Plus /></el-icon>
-            <span class="btn-text-full">创建任务 ({{ selectedDeliveries.length }})</span>
-            <span class="btn-text-short">创建({{ selectedDeliveries.length }})</span>
+            创建任务 ({{ selectedDeliveries.length }})
           </el-button>
           <el-button
-            @click="showExportDialog"
-            :disabled="deliveryStore.deliveryTasks.length === 0"
+            @click="handleExport"
+            :disabled="deliveryStore.pendingDeliveries.length === 0"
           >
             <el-icon><Download /></el-icon>
-            <span class="btn-text-full">导出</span>
-            <span class="btn-text-short">导出</span>
+            导出 ({{ deliveryStore.pendingDeliveries.length }}条)
           </el-button>
         </div>
       </div>
     </div>
 
-    <el-tabs v-model="activeTab" class="delivery-tabs">
-      <!-- Tab 1: 自送配送 -->
-      <el-tab-pane label="自送配送" name="self">
-        <el-row :gutter="20">
-          <!-- Pending Deliveries -->
-          <el-col :xs="24" :lg="12">
-            <el-card shadow="never">
-              <template #header>
-                <span>待配送订单</span>
-                <el-tag type="warning" style="margin-left: 8px;">
-                  {{ deliveryStore.pendingDeliveries.length }} 个
-                </el-tag>
-              </template>
+    <el-row :gutter="20">
+      <!-- Pending Deliveries -->
+      <el-col :xs="24" :lg="12">
+        <el-card shadow="never">
+          <template #header>
+            <span>待配送订单</span>
+            <el-tag type="warning" style="margin-left: 8px;">
+              {{ deliveryStore.pendingDeliveries.length }} 个
+            </el-tag>
+          </template>
           <!-- Desktop: Table view -->
           <el-table
             :data="deliveryStore.pendingDeliveries"
@@ -168,7 +160,7 @@
                 </el-table-column>
                 <el-table-column prop="status" label="状态" width="90">
                   <template #default="{ row }">
-                    <el-tag size="small" :style="{ backgroundColor: getTaskBgColor(row.status), color: getTaskStatusColor(row.status), border: 'none' }">
+                    <el-tag :type="getTaskStatusType(row.status)" size="small">
                       {{ getTaskStatusText(row.status) }}
                     </el-tag>
                   </template>
@@ -226,7 +218,7 @@
                 >
                   <div class="card-header-row">
                     <span class="task-name">{{ row.name || '未命名任务' }}</span>
-                    <el-tag size="small" :style="{ backgroundColor: getTaskBgColor(row.status), color: getTaskStatusColor(row.status), border: 'none' }">
+                    <el-tag :type="getTaskStatusType(row.status)" size="small">
                       {{ getTaskStatusText(row.status) }}
                     </el-tag>
                   </div>
@@ -285,7 +277,7 @@
                 </el-table-column>
                 <el-table-column prop="status" label="状态" width="90">
                   <template #default="{ row }">
-                    <el-tag size="small" :style="{ backgroundColor: getTaskBgColor(row.status), color: getTaskStatusColor(row.status), border: 'none' }">
+                    <el-tag :type="getTaskStatusType(row.status)" size="small">
                       {{ getTaskStatusText(row.status) }}
                     </el-tag>
                   </template>
@@ -326,7 +318,7 @@
                 >
                   <div class="card-header-row">
                     <span class="task-name">{{ row.name || '未命名任务' }}</span>
-                    <el-tag size="small" :style="{ backgroundColor: getTaskBgColor(row.status), color: getTaskStatusColor(row.status), border: 'none' }">
+                    <el-tag :type="getTaskStatusType(row.status)" size="small">
                       {{ getTaskStatusText(row.status) }}
                     </el-tag>
                   </div>
@@ -351,203 +343,6 @@
         </el-card>
       </el-col>
     </el-row>
-      </el-tab-pane>
-
-      <!-- Tab 2: 快递发货 -->
-      <el-tab-pane label="快递发货" name="express">
-        <el-card shadow="never">
-          <template #header>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span>快递订单</span>
-              <el-tag type="warning">{{ expressDeliveries.length }} 个</el-tag>
-            </div>
-          </template>
-
-          <!-- Filters -->
-          <div class="express-filters">
-            <el-select
-              v-model="expressFilters.status"
-              placeholder="状态筛选"
-              clearable
-              style="width: 140px; margin-right: 12px;"
-            >
-              <el-option label="待包装" value="pending_pack" />
-              <el-option label="待打印面单" value="pending_label" />
-              <el-option label="待寄件" value="pending_dropoff" />
-              <el-option label="运输中" value="in_transit" />
-              <el-option label="已签收" value="delivered" />
-              <el-option label="异常" value="exception" />
-            </el-select>
-
-            <el-select
-              v-model="expressFilters.company"
-              placeholder="快递公司"
-              clearable
-              style="width: 140px; margin-right: 12px;"
-            >
-              <el-option
-                v-for="company in expressCompanies"
-                :key="company.id"
-                :label="company.name"
-                :value="company.code"
-              />
-            </el-select>
-
-            <el-button @click="refreshExpressList" :loading="expressLoading">
-              <el-icon><Refresh /></el-icon>
-              刷新
-            </el-button>
-          </div>
-
-          <!-- Desktop: Table view -->
-          <el-table
-            :data="filteredExpressDeliveries"
-            v-loading="expressLoading"
-            class="desktop-table"
-            style="width: 100%; margin-top: 16px;"
-          >
-            <el-table-column prop="order" label="客户" min-width="100">
-              <template #default="{ row }">
-                <span>{{ row.order?.customer?.name || '-' }}</span>
-              </template>
-            </el-table-column>
-
-            <el-table-column prop="express_status" label="状态" width="110">
-              <template #default="{ row }">
-                <el-tag
-                  size="small"
-                  :style="{
-                    backgroundColor: getExpressBgColor(row.express_status),
-                    color: getExpressStatusColor(row.express_status),
-                    border: 'none'
-                  }"
-                >
-                  {{ getExpressStatusText(row.express_status) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-
-            <el-table-column prop="express_company" label="快递公司" width="100">
-              <template #default="{ row }">
-                <span>{{ getCompanyName(row.express_company) }}</span>
-              </template>
-            </el-table-column>
-
-            <el-table-column prop="tracking_number" label="运单号" min-width="120">
-              <template #default="{ row }">
-                <a
-                  v-if="row.tracking_number"
-                  :href="getTrackingUrl(row.express_company, row.tracking_number)"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="tracking-link"
-                >{{ row.tracking_number }}</a>
-                <span v-else style="color: #909399;">未填写</span>
-              </template>
-            </el-table-column>
-
-            <el-table-column prop="recipient_name" label="收件人/地址" min-width="180">
-              <template #default="{ row }">
-                <div class="express-recipient-info">
-                  <div>{{ row.recipient_name || row.order?.customer?.name || '-' }}</div>
-                  <div class="express-address">{{ row.address }}</div>
-                </div>
-              </template>
-            </el-table-column>
-
-            <el-table-column prop="quantity" label="数量" width="60" align="center" />
-
-            <el-table-column prop="created_at" label="创建时间" width="100">
-              <template #default="{ row }">
-                {{ formatDate(row.created_at) }}
-              </template>
-            </el-table-column>
-
-            <el-table-column label="操作" width="180">
-              <template #default="{ row }">
-                <div class="express-actions">
-                  <el-button
-                    v-if="!row.tracking_number"
-                    text
-                    type="primary"
-                    @click="openTrackingDialog(row)"
-                  >
-                    输入运单号
-                  </el-button>
-                  <el-button
-                    v-if="getNextExpressStatus(row.express_status)"
-                    text
-                    type="success"
-                    @click="updateExpressDeliveryStatus(row.id, getNextExpressStatus(row.express_status)!)"
-                  >
-                    {{ row.express_status === 'pending_pack' ? '已包装' : row.express_status === 'pending_label' ? '已打印' : row.express_status === 'pending_dropoff' ? '已发货' : '更新状态' }}
-                  </el-button>
-                  <el-button text type="info" disabled>
-                    打印
-                  </el-button>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-
-          <!-- Mobile: Card view for express deliveries -->
-          <div class="mobile-card-list" v-loading="expressLoading" style="margin-top: 16px;">
-            <div
-              v-for="row in filteredExpressDeliveries"
-              :key="row.id"
-              class="express-mobile-card"
-            >
-              <div class="card-header-row">
-                <span class="customer-name">{{ row.order?.customer?.name || '-' }}</span>
-                <el-tag
-                  size="small"
-                  :style="{
-                    backgroundColor: getExpressBgColor(row.express_status),
-                    color: getExpressStatusColor(row.express_status),
-                    border: 'none'
-                  }"
-                >
-                  {{ getExpressStatusText(row.express_status) }}
-                </el-tag>
-              </div>
-              <div class="card-info">
-                <span v-if="row.express_company">{{ getCompanyName(row.express_company) }}</span>
-                <a
-                  v-if="row.tracking_number"
-                  :href="getTrackingUrl(row.express_company, row.tracking_number)"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="tracking-link tracking-num"
-                >{{ row.tracking_number }}</a>
-              </div>
-              <div class="card-address">{{ row.address }}</div>
-              <div class="card-footer">
-                <span>{{ row.quantity }}箱 / {{ formatDate(row.created_at) }}</span>
-                <div class="card-actions">
-                  <el-button
-                    v-if="!row.tracking_number"
-                    size="small"
-                    type="primary"
-                    @click="openTrackingDialog(row)"
-                  >
-                    输入运单号
-                  </el-button>
-                  <el-button
-                    v-if="getNextExpressStatus(row.express_status)"
-                    size="small"
-                    type="success"
-                    @click="updateExpressDeliveryStatus(row.id, getNextExpressStatus(row.express_status)!)"
-                  >
-                    {{ row.express_status === 'pending_pack' ? '已包装' : row.express_status === 'pending_label' ? '已打印' : '已发货' }}
-                  </el-button>
-                </div>
-              </div>
-            </div>
-            <el-empty v-if="filteredExpressDeliveries.length === 0" description="暂无快递订单" />
-          </div>
-        </el-card>
-      </el-tab-pane>
-    </el-tabs>
 
     <!-- Departure Location Dialog -->
     <el-dialog v-model="departureDialogVisible" title="设置出发地点" width="500px">
@@ -753,58 +548,6 @@
         </el-button>
       </template>
     </el-dialog>
-
-    <!-- Export Dialog -->
-    <el-dialog v-model="exportDialogVisible" title="导出配送任务" width="450px">
-      <el-form label-width="80px">
-        <el-form-item label="日期范围">
-          <el-date-picker
-            v-model="exportFilters.dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-            clearable
-          />
-        </el-form-item>
-        <el-form-item label="任务状态">
-          <el-checkbox-group v-model="exportFilters.statuses">
-            <el-checkbox label="planning">规划中</el-checkbox>
-            <el-checkbox label="in_progress">进行中</el-checkbox>
-            <el-checkbox label="completed">已完成</el-checkbox>
-            <el-checkbox label="cancelled">已取消</el-checkbox>
-          </el-checkbox-group>
-        </el-form-item>
-        <el-form-item label="预览">
-          <span style="color: #409eff;">将导出 {{ filteredExportCount }} 条任务</span>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="exportDialogVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="filteredExportCount === 0" @click="handleExport">
-          确认导出
-        </el-button>
-      </template>
-    </el-dialog>
-
-    <!-- Tracking Number Dialog -->
-    <el-dialog v-model="trackingDialogVisible" title="输入运单号" width="400px">
-      <el-form :model="trackingForm" label-width="80px">
-        <el-form-item label="运单号">
-          <el-input
-            v-model="trackingForm.trackingNumber"
-            placeholder="请输入快递运单号"
-            clearable
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="trackingDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveTrackingNumber">保存</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -814,46 +557,17 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { useDeliveryStore } from '@/stores/deliveries'
-import { useOrderStore } from '@/stores/orders'
 import { getAmapService, DEFAULT_DEPARTURE, DEFAULT_DEPARTURE_ADDRESS, type Location } from '@/api/amap'
-import { exportDeliveryTasks } from '@/api/export'
-import {
-  fetchExpressDeliveries,
-  fetchExpressCompanies,
-  getExpressStatusText,
-  getExpressStatusColor,
-  getExpressBgColor,
-  updateExpressStatus,
-  getNextExpressStatus,
-  getTrackingUrl,
-} from '@/api/express'
+import { exportPendingDeliveries } from '@/api/export'
 import { usePullRefresh } from '@/composables/usePullRefresh'
 import PullRefreshIndicator from '@/components/PullRefreshIndicator.vue'
 import PhoneField from '@/components/PhoneField.vue'
 import AddressInput from '@/components/AddressInput.vue'
-import type { DeliveryTask, DeliveryTaskStatus, OrderDelivery, OptimizedRoute, RouteStep, ExpressCompany, ExpressStatus } from '@/types'
+import type { DeliveryTask, DeliveryTaskStatus, OrderDelivery, OptimizedRoute, RouteStep } from '@/types'
 import type { TableInstance } from 'element-plus'
 
 const router = useRouter()
 const deliveryStore = useDeliveryStore()
-const orderStore = useOrderStore()
-
-// Tab state
-const activeTab = ref('self')
-
-// Express shipping state
-const expressDeliveries = ref<any[]>([])
-const expressCompanies = ref<ExpressCompany[]>([])
-const expressFilters = reactive({
-  status: '' as ExpressStatus | '',
-  company: '',
-})
-const expressLoading = ref(false)
-const trackingDialogVisible = ref(false)
-const trackingForm = reactive({
-  deliveryId: '',
-  trackingNumber: '',
-})
 
 // Pull to refresh setup
 const pageContainerRef = ref<HTMLElement | null>(null)
@@ -878,35 +592,6 @@ const planningRoute = ref(false)
 const currentStep = ref(0)
 const isRoundTrip = ref(true) // 默认环形路线
 const activeCollapse = ref(['active']) // 默认展开进行中的任务
-const exportDialogVisible = ref(false)
-
-const exportFilters = reactive({
-  dateRange: [] as string[],
-  statuses: [] as DeliveryTaskStatus[],
-})
-
-// Computed count of filtered records for export preview
-const filteredExportCount = computed(() => {
-  let filtered = deliveryStore.deliveryTasks
-
-  // Filter by date range
-  if (exportFilters.dateRange && exportFilters.dateRange.length === 2 && exportFilters.dateRange[0] && exportFilters.dateRange[1]) {
-    const startDate = new Date(exportFilters.dateRange[0])
-    const endDate = new Date(exportFilters.dateRange[1])
-    endDate.setDate(endDate.getDate() + 1) // Include end date
-    filtered = filtered.filter((t: DeliveryTask) => {
-      const date = new Date(t.created_at)
-      return date >= startDate && date < endDate
-    })
-  }
-
-  // Filter by status
-  if (exportFilters.statuses.length > 0) {
-    filtered = filtered.filter((t: DeliveryTask) => exportFilters.statuses.includes(t.status))
-  }
-
-  return filtered.length
-})
 
 const taskForm = reactive({
   name: '',
@@ -1056,7 +741,6 @@ onMounted(() => {
   loadRecentLocations()
   deliveryStore.fetchPendingDeliveries()
   deliveryStore.fetchDeliveryTasks()
-  loadExpressDeliveries()
   // Setup pull-to-refresh listeners
   if (pageContainerRef.value) {
     setupListeners(pageContainerRef.value)
@@ -1077,45 +761,9 @@ function handleSelectionChange(selection: OrderDelivery[]) {
   selectedDeliveries.value = selection
 }
 
-function showExportDialog() {
-  // Reset filters
-  exportFilters.dateRange = []
-  exportFilters.statuses = []
-  exportDialogVisible.value = true
-}
-
 function handleExport() {
-  let filtered = deliveryStore.deliveryTasks
-
-  // Filter by date range
-  if (exportFilters.dateRange && exportFilters.dateRange.length === 2 && exportFilters.dateRange[0] && exportFilters.dateRange[1]) {
-    const startDate = new Date(exportFilters.dateRange[0])
-    const endDate = new Date(exportFilters.dateRange[1])
-    endDate.setDate(endDate.getDate() + 1) // Include end date
-    filtered = filtered.filter((t: DeliveryTask) => {
-      const date = new Date(t.created_at)
-      return date >= startDate && date < endDate
-    })
-  }
-
-  // Filter by status
-  if (exportFilters.statuses.length > 0) {
-    filtered = filtered.filter((t: DeliveryTask) => exportFilters.statuses.includes(t.status))
-  }
-
-  // Build filename suffix
-  const filterParts: string[] = []
-  if (exportFilters.statuses.length > 0 && exportFilters.statuses.length < 4) {
-    filterParts.push(exportFilters.statuses.map(s => getTaskStatusText(s)).join('-'))
-  }
-  if (exportFilters.dateRange && exportFilters.dateRange.length === 2 && exportFilters.dateRange[0] && exportFilters.dateRange[1]) {
-    filterParts.push(`${exportFilters.dateRange[0]}至${exportFilters.dateRange[1]}`)
-  }
-  const filenameSuffix = filterParts.length > 0 ? `_${filterParts.join('_')}` : ''
-
-  exportDeliveryTasks(filtered, filenameSuffix)
-  ElMessage.success(`已导出 ${filtered.length} 条配送任务`)
-  exportDialogVisible.value = false
+  exportPendingDeliveries(deliveryStore.pendingDeliveries)
+  ElMessage.success(`已导出 ${deliveryStore.pendingDeliveries.length} 条待配送`)
 }
 
 function toggleDeliverySelection(delivery: OrderDelivery) {
@@ -1139,26 +787,6 @@ function getTaskStatusType(status: DeliveryTaskStatus) {
     cancelled: 'danger',
   }
   return map[status] || 'info'
-}
-
-function getTaskStatusColor(status: DeliveryTaskStatus) {
-  const map: Record<DeliveryTaskStatus, string> = {
-    planning: '#909399',     // Gray - waiting to be started
-    in_progress: '#00C9B7',  // Teal - in progress, active (same as delivering)
-    completed: '#67C23A',    // Green - success, done
-    cancelled: '#F56C6C',    // Red - danger, cancelled
-  }
-  return map[status] || ''
-}
-
-function getTaskBgColor(status: DeliveryTaskStatus) {
-  const map: Record<DeliveryTaskStatus, string> = {
-    planning: '#F4F4F5',     // Light gray bg
-    in_progress: '#E8FAF8',  // Light teal bg
-    completed: '#F0F9EB',    // Light green bg
-    cancelled: '#FEF0F0',    // Light red bg
-  }
-  return map[status] || ''
 }
 
 function getTaskStatusText(status: DeliveryTaskStatus) {
@@ -1617,103 +1245,6 @@ watch(selectedStrategy, async (newStrategy) => {
     }, 300)
   }
 })
-
-// ============ Express Shipping Functions ============
-
-async function loadExpressDeliveries() {
-  expressLoading.value = true
-  try {
-    // Load companies first
-    const companies = await fetchExpressCompanies()
-    expressCompanies.value = companies
-
-    // Load deliveries with filters
-    const filters: { status?: ExpressStatus; company?: string } = {}
-    if (expressFilters.status) {
-      filters.status = expressFilters.status
-    }
-    if (expressFilters.company) {
-      filters.company = expressFilters.company
-    }
-    const deliveries = await fetchExpressDeliveries(Object.keys(filters).length > 0 ? filters : undefined)
-    expressDeliveries.value = deliveries
-  } catch (error) {
-    console.error('Load express deliveries error:', error)
-  } finally {
-    expressLoading.value = false
-  }
-}
-
-async function refreshExpressList() {
-  await loadExpressDeliveries()
-}
-
-async function updateExpressDeliveryStatus(deliveryId: string, newStatus: ExpressStatus) {
-  try {
-    const result = await updateExpressStatus(deliveryId, newStatus)
-    if (result.success) {
-      ElMessage.success('状态已更新')
-      // Check if order should be marked as completed
-      await orderStore.onExpressStatusChanged(deliveryId, newStatus)
-      await refreshExpressList()
-    } else {
-      ElMessage.error(result.error || '更新失败')
-    }
-  } catch (error) {
-    ElMessage.error('更新失败')
-  }
-}
-
-function openTrackingDialog(delivery: any) {
-  trackingForm.deliveryId = delivery.id
-  trackingForm.trackingNumber = delivery.tracking_number || ''
-  trackingDialogVisible.value = true
-}
-
-async function saveTrackingNumber() {
-  if (!trackingForm.trackingNumber.trim()) {
-    ElMessage.warning('请输入运单号')
-    return
-  }
-
-  try {
-    const result = await updateExpressStatus(trackingForm.deliveryId, 'pending_dropoff', {
-      tracking_number: trackingForm.trackingNumber.trim(),
-    })
-    if (result.success) {
-      ElMessage.success('运单号已保存')
-      trackingDialogVisible.value = false
-      await refreshExpressList()
-    } else {
-      ElMessage.error(result.error || '保存失败')
-    }
-  } catch (error) {
-    ElMessage.error('保存失败')
-  }
-}
-
-// Computed for filtered express deliveries
-const filteredExpressDeliveries = computed(() => {
-  let result = expressDeliveries.value
-  if (expressFilters.status) {
-    result = result.filter(d => d.express_status === expressFilters.status)
-  }
-  if (expressFilters.company) {
-    result = result.filter(d => d.express_company === expressFilters.company)
-  }
-  return result
-})
-
-// Watch express filters to reload
-watch([() => expressFilters.status, () => expressFilters.company], () => {
-  loadExpressDeliveries()
-})
-
-// Get company name by code
-function getCompanyName(code: string): string {
-  const company = expressCompanies.value.find(c => c.code === code)
-  return company?.name || code || '-'
-}
 </script>
 
 <style scoped>
@@ -1741,14 +1272,6 @@ function getCompanyName(code: string): string {
   align-items: center;
   gap: 12px;
   flex-wrap: nowrap;
-}
-
-/* Desktop: show full text, hide short text */
-.location-buttons .btn-text-short {
-  display: none;
-}
-.location-buttons .btn-text-full {
-  display: inline;
 }
 
 .location-buttons .el-button {
@@ -2003,34 +1526,40 @@ function getCompanyName(code: string): string {
   /* Mobile header adjustments */
   .header-top-row {
     width: 100%;
-    overflow-x: visible;
+    overflow-x: auto;
   }
 
   .location-buttons {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 6px;
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  /* Show short text on mobile, hide full text */
-  .location-buttons .btn-text-short {
-    display: inline;
-  }
-  .location-buttons .btn-text-full {
-    display: none;
+    min-width: max-content;
   }
 
   .location-buttons .el-button {
-    padding: 6px 8px;
+    padding: 6px 10px;
     font-size: 12px;
-    flex-shrink: 0;
+    max-width: 100px;
+  }
+
+  .location-buttons .el-button span {
+    display: inline-block;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .location-buttons .el-button--primary {
+    max-width: none;
+  }
+
+  .location-buttons .el-button--primary span {
+    max-width: none;
   }
 
   .roundtrip-checkbox {
-    margin: 0 4px;
+    margin: 0 6px;
     font-size: 12px;
-    flex-shrink: 0;
   }
 
   .roundtrip-checkbox :deep(.el-checkbox__label) {
@@ -2173,105 +1702,5 @@ function getCompanyName(code: string): string {
   .route-map-container {
     height: 300px;
   }
-}
-
-/* Express shipping styles */
-.delivery-tabs {
-  margin-top: 16px;
-}
-
-.express-filters {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.express-recipient-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.express-address {
-  font-size: 12px;
-  color: #909399;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.express-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.express-actions .el-button {
-  margin: 0;
-  padding: 4px 8px;
-}
-
-.express-mobile-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
-  background: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-}
-
-.express-mobile-card .card-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.express-mobile-card .customer-name {
-  font-weight: 500;
-  font-size: 15px;
-}
-
-.express-mobile-card .card-info {
-  display: flex;
-  gap: 12px;
-  font-size: 13px;
-  color: #606266;
-}
-
-.express-mobile-card .tracking-num {
-  color: #409eff;
-  font-family: monospace;
-}
-
-.tracking-link {
-  color: #409eff;
-  text-decoration: none;
-  font-family: monospace;
-}
-
-.tracking-link:hover {
-  text-decoration: underline;
-}
-
-.express-mobile-card .card-address {
-  font-size: 13px;
-  color: #909399;
-}
-
-.express-mobile-card .card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: #909399;
-}
-
-.express-mobile-card .card-actions {
-  display: flex;
-  gap: 8px;
 }
 </style>

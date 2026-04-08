@@ -75,19 +75,35 @@ export interface OrderDelivery {
   // Express shipping fields
   express_company?: string
   tracking_number?: string
+  tracking_numbers?: TrackingNumbersData
   express_order_id?: string
   express_status?: ExpressStatus
   express_data?: ExpressData
   packed_at?: string
   shipped_at?: string
   weight?: number
+  // Pickup fields
+  pickup_status?: PickupStatus
+  picked_up_at?: string
   created_at: string
   updated_at: string
 }
 
 export type DeliveryStatus = 'pending' | 'assigned' | 'delivering' | 'delivered'
-export type DeliveryMethod = 'self' | 'express'
+export type DeliveryMethod = 'self' | 'express' | 'pickup'
 export type ExpressStatus = 'pending_pack' | 'pending_label' | 'pending_dropoff' | 'in_transit' | 'delivered' | 'exception'
+export type PickupStatus = 'pending' | 'picked_up'
+
+export interface TrackingNumberItem {
+  number: string           // The tracking number
+  carrier: string          // Carrier code (e.g., 'shunfeng', 'yuantong')
+  index?: number           // Position in the list (0-based)
+}
+
+export interface TrackingNumbersData {
+  items: TrackingNumberItem[]
+  primary_index?: number   // Index of the primary/first tracking number (default 0)
+}
 
 export interface ExpressData {
   // Store API response data
