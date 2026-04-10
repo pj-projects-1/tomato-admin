@@ -642,7 +642,7 @@
             class="desktop-table"
             style="width: 100%; margin-top: 16px;"
           >
-            <el-table-column prop="order" label="客户" width="100">
+            <el-table-column prop="order" label="客户" min-width="100">
               <template #default="{ row }">
                 <span class="pickup-customer">{{ row.order?.customer?.name || '-' }}</span>
               </template>
@@ -665,7 +665,7 @@
               </template>
             </el-table-column>
 
-            <el-table-column prop="order" label="联系电话" width="115">
+            <el-table-column prop="order" label="联系电话" min-width="115">
               <template #default="{ row }">
                 <PhoneField :phone="row.order?.customer?.phone" />
               </template>
