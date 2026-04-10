@@ -440,11 +440,11 @@
                   <template v-if="getTrackingNumbers(row).length > 0">
                     <!-- First tracking number always visible -->
                     <a
-                      :href="getTrackingUrlFromItem(getTrackingNumbers(row)[0], row.express_company)"
+                      :href="getTrackingUrlFromItem(getTrackingNumbers(row)[0]!, row.express_company)"
                       target="_blank"
                       rel="noopener noreferrer"
                       class="tracking-link"
-                    >{{ getTrackingNumbers(row)[0].number }}</a>
+                    >{{ getTrackingNumbers(row)[0]!.number }}</a>
                     <!-- Additional numbers (collapsible) -->
                     <template v-if="getTrackingNumbers(row).length > 1">
                       <a
@@ -536,11 +536,11 @@
                 <span v-if="row.express_company">{{ getCompanyName(row.express_company) }}</span>
                 <template v-if="getTrackingNumbers(row).length > 0">
                   <a
-                    :href="getTrackingUrlFromItem(getTrackingNumbers(row)[0], row.express_company)"
+                    :href="getTrackingUrlFromItem(getTrackingNumbers(row)[0]!, row.express_company)"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="tracking-link tracking-num"
-                  >{{ getTrackingNumbers(row)[0].number }}</a>
+                  >{{ getTrackingNumbers(row)[0]!.number }}</a>
                   <template v-if="getTrackingNumbers(row).length > 1">
                     <a
                       v-for="(tn, idx) in getTrackingNumbers(row).slice(1)"
@@ -1883,7 +1883,7 @@ async function saveTrackingNumber() {
     const trackingNumbersData = buildTrackingNumbersData(validNumbers)
 
     // For backwards compatibility, also set the primary tracking_number
-    const primaryNumber = validNumbers[0].number.trim()
+    const primaryNumber = validNumbers[0]!.number.trim()
 
     const result = await updateExpressStatus(trackingForm.deliveryId, 'pending_dropoff', {
       tracking_number: primaryNumber,

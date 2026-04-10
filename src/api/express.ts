@@ -186,6 +186,7 @@ export async function updateExpressStatus(
   status: ExpressStatus,
   additionalData?: {
     tracking_number?: string
+    tracking_numbers?: any
     express_company?: string
     express_data?: any
   }
