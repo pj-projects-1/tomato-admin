@@ -472,3 +472,127 @@ export function getTrackingUrlFromItem(
   }
   return `https://www.kuaidi100.com/chaxun?nu=${item.number}`
 }
+
+// ============ Pickup Delivery Functions ============
+
+import type { PickupStatus } from '@/types'
+
+/**
+ * Get pickup status display text
+ */
+export function getPickupStatusText(status: PickupStatus): string {
+  const map: Record<PickupStatus, string> = {
+    pending: '待自提',
+    picked_up: '已自提',
+  }
+  return map[status] || status
+}
+
+/**
+ * Get pickup status color (text color)
+ */
+export function getPickupStatusColor(status: PickupStatus): string {
+  const map: Record<PickupStatus, string> = {
+    pending: '#E6A23C',   // Orange
+    picked_up: '#67C23A', // Green
+  }
+  return map[status] || '#909399'
+}
+
+/**
+ * Get pickup status background color
+ */
+export function getPickupBgColor(status: PickupStatus): string {
+  const map: Record<PickupStatus, string> = {
+    pending: '#FDF6EC',    // Light orange
+    picked_up: '#F0F9EB',  // Light green
+  }
+  return map[status] || '#F4F4F5'
+}
+
+/**
+ * Fetch pickup deliveries (delivery_method = 'pickup')
+ */
+export async function fetchPickupDeliveries(filters?: {
+  status?: PickupStatus
+}): Promise<any[]> {
+  try {
+    let query = supabase
+      .from('order_deliveries')
+      .select(`
+        *,
+        order:orders(
+          *,
+          customer:customers(*)
+        )
+      `)
+      .eq('delivery_method', 'pickup')
+      .order('created_at', { ascending: false })
+
+    if (filters?.status) {
+      query = query.eq('pickup_status', filters.status)
+    }
+
+    const { data, error } = await query
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Fetch pickup deliveries error:', error)
+    return []
+  }
+}
+
+/**
+ * Update pickup status
+ */
+export async function updatePickupStatus(
+  deliveryId: string,
+  status: PickupStatus
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const updates: any = {
+      pickup_status: status,
+    }
+
+    if (status === 'picked_up') {
+      updates.picked_up_at = new Date().toISOString()
+      updates.status = 'delivered'
+      updates.delivered_at = new Date().toISOString()
+    }
+
+    const { error } = await supabase
+      .from('order_deliveries')
+      .update(updates)
+      .eq('id', deliveryId)
+
+    if (error) throw error
+
+    // Check if all deliveries for this order are delivered
+    const { data: delivery } = await supabase
+      .from('order_deliveries')
+      .select('order_id')
+      .eq('id', deliveryId)
+      .single()
+
+    if (delivery?.order_id) {
+      const { data: allDeliveries } = await supabase
+        .from('order_deliveries')
+        .select('status')
+        .eq('order_id', delivery.order_id)
+
+      const allDelivered = allDeliveries?.every(d => d.status === 'delivered')
+      if (allDelivered) {
+        await supabase
+          .from('orders')
+          .update({ status: 'completed' })
+          .eq('id', delivery.order_id)
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Update pickup status error:', error)
+    return { success: false, error: (error as Error).message }
+  }
+}
