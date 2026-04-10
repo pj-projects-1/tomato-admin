@@ -10,9 +10,9 @@
         :default-active="activeMenu"
         :collapse="isCollapse"
         router
-        background-color="#304156"
-        text-color="#bfcbd9"
-        active-text-color="#409eff"
+        background-color="#3D2B1F"
+        text-color="#D4C4B0"
+        active-text-color="#C84B31"
       >
         <el-menu-item index="/">
           <el-icon><DataBoard /></el-icon>
@@ -61,9 +61,9 @@
         <el-menu
           :default-active="activeMenu"
           router
-          background-color="#304156"
-          text-color="#bfcbd9"
-          active-text-color="#409eff"
+          background-color="#3D2B1F"
+          text-color="#D4C4B0"
+          active-text-color="#C84B31"
           @select="drawerVisible = false"
         >
           <el-menu-item index="/">
@@ -268,7 +268,7 @@ async function handleCommand(command: string) {
 }
 
 .sidebar {
-  background-color: #304156;
+  background-color: #3D2B1F;
   transition: width 0.3s;
   overflow: hidden;
 }
@@ -282,7 +282,7 @@ async function handleCommand(command: string) {
   color: #fff;
   font-size: 18px;
   font-weight: 600;
-  border-bottom: 1px solid #3a4a5d;
+  border-bottom: 1px solid #4D3B2F;
   padding: 0 10px;
 }
 
@@ -319,11 +319,11 @@ async function handleCommand(command: string) {
 .collapse-btn {
   font-size: 20px;
   cursor: pointer;
-  color: #606266;
+  color: var(--warm-gray);
 }
 
 .collapse-btn:hover {
-  color: #409eff;
+  color: var(--tomato-red);
 }
 
 .header-right {
@@ -352,7 +352,7 @@ async function handleCommand(command: string) {
 .hamburger-btn {
   font-size: 28px;
   cursor: pointer;
-  color: #606266;
+  color: var(--warm-gray);
   padding: 10px;
   min-width: 48px;
   min-height: 48px;
@@ -364,8 +364,8 @@ async function handleCommand(command: string) {
 }
 
 .hamburger-btn:hover {
-  color: #409eff;
-  background-color: rgba(64, 158, 255, 0.1);
+  color: var(--tomato-red);
+  background-color: rgba(200, 75, 49, 0.1);
 }
 
 .drawer-sidebar {
@@ -375,7 +375,7 @@ async function handleCommand(command: string) {
 /* Mobile drawer overrides */
 :deep(.mobile-drawer .el-drawer__body) {
   padding: 0;
-  background-color: #304156;
+  background-color: #3D2B1F;
 }
 
 /* Mobile header adjustments */
@@ -395,7 +395,7 @@ async function handleCommand(command: string) {
   top: 60px;
   left: 50%;
   transform: translateX(-50%);
-  background: #e6a23c;
+  background: var(--harvest-gold);
   color: #fff;
   padding: 8px 16px;
   border-radius: 4px;

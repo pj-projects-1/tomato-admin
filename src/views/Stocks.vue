@@ -33,7 +33,7 @@
       <el-col :xs="24" :sm="12" :md="8">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
-            <div class="stat-icon" style="background: #67c23a;">
+            <div class="stat-icon stock-stat-icon--balance">
               <el-icon size="32"><Box /></el-icon>
             </div>
             <div class="stat-info">
@@ -64,7 +64,7 @@
         </el-table-column>
         <el-table-column prop="quantity" label="数量" width="80" align="center">
           <template #default="{ row }">
-            <span :style="{ color: row.type === 'in' || (row.type === 'adjust' && row.quantity > 0) ? '#67c23a' : '#f56c6c' }">
+            <span :class="row.type === 'in' || (row.type === 'adjust' && row.quantity > 0) ? 'qty-positive' : 'qty-negative'">
               {{ row.quantity >= 0 ? '+' : '' }}{{ row.quantity }}
             </span>
           </template>
@@ -125,7 +125,7 @@
             <el-tag :type="getTypeColor(row.type)" size="small">
               {{ getTypeText(row.type) }}
             </el-tag>
-            <span class="quantity" :style="{ color: row.type === 'in' || (row.type === 'adjust' && row.quantity > 0) ? '#67c23a' : '#f56c6c' }">
+            <span class="quantity" :class="row.type === 'in' || (row.type === 'adjust' && row.quantity > 0) ? 'qty-positive' : 'qty-negative'">
               {{ row.quantity >= 0 ? '+' : '' }}{{ row.quantity }}箱
             </span>
             <span class="balance">余额: {{ row.balance_after }}</span>
@@ -281,7 +281,7 @@
           <el-tag :type="getTypeColor(recordEditForm.type)">
             {{ getTypeText(recordEditForm.type) }}
           </el-tag>
-          <span style="margin-left: 12px; color: #606266;">
+          <span style="margin-left: 12px; color: var(--text-regular);">
             数量：{{ recordEditForm.quantity }} 箱
           </span>
         </el-form-item>
@@ -345,7 +345,7 @@
           </el-checkbox-group>
         </el-form-item>
         <el-form-item label="预览">
-          <span style="color: #409eff;">将导出 {{ filteredExportCount }} 条记录</span>
+          <span style="color: var(--tomato-red);">将导出 {{ filteredExportCount }} 条记录</span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -488,6 +488,15 @@ function getTypeColor(type: StockType) {
     adjust: 'warning',
   }
   return map[type] || 'info'
+}
+
+function getTypeHexColor(type: StockType) {
+  const map: Record<StockType, string> = {
+    in: '#7D9D6C',
+    out: '#CF4B3F',
+    adjust: '#D4A574',
+  }
+  return map[type] || '#6B5B50'
 }
 
 function getTypeText(type: StockType) {
@@ -719,6 +728,18 @@ function viewOrder(orderId: string) {
   color: #fff;
 }
 
+.stock-stat-icon--balance {
+  background: var(--soft-sage);
+}
+
+.qty-positive {
+  color: var(--soft-sage);
+}
+
+.qty-negative {
+  color: var(--el-color-danger);
+}
+
 .stat-info {
   flex: 1;
 }
@@ -758,12 +779,12 @@ function viewOrder(orderId: string) {
 }
 
 .edit-menu-item:hover {
-  border-color: #409eff;
-  background-color: #f0f7ff;
+  border-color: var(--tomato-red);
+  background-color: var(--status-confirmed-bg);
 }
 
 .edit-menu-item .el-icon:first-child {
-  color: #409eff;
+  color: var(--tomato-red);
   margin-right: 12px;
 }
 
@@ -850,19 +871,19 @@ function viewOrder(orderId: string) {
     background: #fff;
     border: 1px solid #e4e7ed;
     border-radius: 8px;
-    border-left: 4px solid #409eff;
+    border-left: 4px solid var(--tomato-red);
   }
 
   .stock-mobile-card.stock-in {
-    border-left-color: #67c23a;
+    border-left-color: var(--soft-sage);
   }
 
   .stock-mobile-card.stock-out {
-    border-left-color: #f56c6c;
+    border-left-color: var(--el-color-danger);
   }
 
   .stock-mobile-card.stock-adjust {
-    border-left-color: #e6a23c;
+    border-left-color: var(--harvest-gold);
   }
 
   .stock-mobile-card .card-header-row {

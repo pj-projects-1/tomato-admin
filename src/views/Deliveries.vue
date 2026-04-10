@@ -9,6 +9,16 @@
 
     <div class="page-header">
       <h1 class="page-title">配送规划</h1>
+      <div class="header-actions">
+        <el-button
+          @click="handleExport"
+          :disabled="exportCount === 0"
+        >
+          <el-icon><Download /></el-icon>
+          <span class="btn-text-full">导出 ({{ exportCount }}条)</span>
+          <span class="btn-text-short">导出</span>
+        </el-button>
+      </div>
     </div>
 
     <el-tabs v-model="activeTab" class="delivery-tabs" @tab-change="handleTabChange">
@@ -39,15 +49,22 @@
               <span class="btn-text-full">创建任务 ({{ selectedDeliveries.length }})</span>
               <span class="btn-text-short">创建({{ selectedDeliveries.length }})</span>
             </el-button>
-            <el-button
-              @click="handleExport"
-              :disabled="deliveryStore.pendingDeliveries.length === 0"
-            >
-              <el-icon><Download /></el-icon>
-              <span class="btn-text-full">导出 ({{ deliveryStore.pendingDeliveries.length }}条)</span>
-              <span class="btn-text-short">导出</span>
-            </el-button>
           </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="express-filters">
+          <el-select
+            v-model="selfDeliveryFilter"
+            placeholder="状态筛选"
+            clearable
+            style="width: 120px"
+          >
+            <el-option label="待配送" value="pending" />
+            <el-option label="已分配" value="assigned" />
+            <el-option label="配送中" value="delivering" />
+            <el-option label="已送达" value="delivered" />
+          </el-select>
         </div>
 
         <el-row :gutter="20">
@@ -55,21 +72,21 @@
           <el-col :xs="24" :lg="12">
             <el-card shadow="never">
               <template #header>
-                <span>待配送订单</span>
+                <span>配送订单</span>
                 <el-tag type="warning" style="margin-left: 8px;">
-                  {{ deliveryStore.pendingDeliveries.length }} 个
+                  {{ filteredSelfDeliveries.length }} 个
                 </el-tag>
               </template>
               <!-- Desktop: Table view -->
               <el-table
-                :data="deliveryStore.pendingDeliveries"
+                :data="filteredSelfDeliveries"
                 v-loading="deliveryStore.loading"
                 class="desktop-table"
                 @selection-change="handleSelectionChange"
                 style="width: 100%"
                 ref="tableRef"
               >
-                <el-table-column type="selection" width="40" />
+                <el-table-column type="selection" width="40" :selectable="(row: OrderDelivery) => row.status === 'pending'" />
                 <el-table-column prop="order" label="买家" min-width="100">
                   <template #default="{ row }">
                     <span>{{ row.order?.customer?.name || '-' }}</span>
@@ -80,7 +97,7 @@
                     <div class="recipient-info">
                       <span>{{ row.recipient_name || row.order?.customer?.name || '-' }}</span>
                       <el-icon v-if="row.recipient_name && row.recipient_name !== row.order?.customer?.name"
-                        class="diff-icon" color="#E6A23C" title="收件人与买家不同"
+                        class="diff-icon" color="#D4A574" title="收件人与买家不同"
                       >
                         <Warning />
                       </el-icon>
@@ -91,10 +108,10 @@
                   <template #default="{ row }">
                     <div class="address-cell">
                       <span>{{ row.address }}</span>
-                      <el-icon v-if="!row.location" color="#F56C6C" size="14" title="未获取坐标">
+                      <el-icon v-if="!row.location" color="#CF4B3F" size="14" title="未获取坐标">
                         <Location />
                       </el-icon>
-                      <el-icon v-else color="#67C23A" size="14" title="已获取坐标">
+                      <el-icon v-else color="#7D9D6C" size="14" title="已获取坐标">
                         <LocationFilled />
                       </el-icon>
                     </div>
@@ -106,11 +123,19 @@
                     <PhoneField :phone="row.recipient_phone || row.order?.customer?.phone" />
                   </template>
                 </el-table-column>
+                <el-table-column prop="status" label="状态" width="90">
+                  <template #default="{ row }">
+                    <el-tag
+                      size="small"
+                      :class="'status-tag--' + row.status"
+                    >{{ getSelfDeliveryStatusText(row.status) }}</el-tag>
+                  </template>
+                </el-table-column>
               </el-table>
               <!-- Mobile: Card view for pending deliveries -->
               <div class="mobile-card-list" v-loading="deliveryStore.loading">
                 <div
-                  v-for="row in deliveryStore.pendingDeliveries"
+                  v-for="row in filteredSelfDeliveries"
                   :key="row.id"
                   class="delivery-mobile-card"
                   :class="{ selected: selectedDeliveries.includes(row) }"
@@ -126,8 +151,8 @@
                     <el-tag size="small">{{ row.quantity }}箱</el-tag>
                   </div>
                   <div class="card-address">
-                    <el-icon v-if="!row.location" color="#F56C6C" size="14"><Location /></el-icon>
-                    <el-icon v-else color="#67C23A" size="14"><LocationFilled /></el-icon>
+                    <el-icon v-if="!row.location" color="#CF4B3F" size="14"><Location /></el-icon>
+                    <el-icon v-else color="#7D9D6C" size="14"><LocationFilled /></el-icon>
                     <span>{{ row.address }}</span>
                   </div>
                   <div class="card-footer">
@@ -137,7 +162,7 @@
                     </span>
                   </div>
                 </div>
-                <el-empty v-if="deliveryStore.pendingDeliveries.length === 0" description="暂无待配送订单" />
+                <el-empty v-if="filteredSelfDeliveries.length === 0" description="暂无待配送订单" />
               </div>
             </el-card>
           </el-col>
@@ -168,7 +193,7 @@
                     </el-table-column>
                     <el-table-column prop="status" label="状态" width="90">
                       <template #default="{ row }">
-                        <el-tag size="small" :style="{ backgroundColor: getTaskBgColor(row.status), color: getTaskStatusColor(row.status), border: 'none' }">
+                        <el-tag size="small" :class="getTaskStatusClass(row.status)">
                           {{ getTaskStatusText(row.status) }}
                         </el-tag>
                       </template>
@@ -226,7 +251,7 @@
                     >
                       <div class="card-header-row">
                         <span class="task-name">{{ row.name || '未命名任务' }}</span>
-                        <el-tag size="small" :style="{ backgroundColor: getTaskBgColor(row.status), color: getTaskStatusColor(row.status), border: 'none' }">
+                        <el-tag size="small" :class="getTaskStatusClass(row.status)">
                           {{ getTaskStatusText(row.status) }}
                         </el-tag>
                       </div>
@@ -285,7 +310,7 @@
                     </el-table-column>
                     <el-table-column prop="status" label="状态" width="90">
                       <template #default="{ row }">
-                        <el-tag size="small" :style="{ backgroundColor: getTaskBgColor(row.status), color: getTaskStatusColor(row.status), border: 'none' }">
+                        <el-tag size="small" :class="getTaskStatusClass(row.status)">
                           {{ getTaskStatusText(row.status) }}
                         </el-tag>
                       </template>
@@ -326,7 +351,7 @@
                     >
                       <div class="card-header-row">
                         <span class="task-name">{{ row.name || '未命名任务' }}</span>
-                        <el-tag size="small" :style="{ backgroundColor: getTaskBgColor(row.status), color: getTaskStatusColor(row.status), border: 'none' }">
+                        <el-tag size="small" :class="getTaskStatusClass(row.status)">
                           {{ getTaskStatusText(row.status) }}
                         </el-tag>
                       </div>
@@ -417,11 +442,7 @@
               <template #default="{ row }">
                 <el-tag
                   size="small"
-                  :style="{
-                    backgroundColor: getExpressBgColor(row.express_status),
-                    color: getExpressStatusColor(row.express_status),
-                    border: 'none'
-                  }"
+                  :class="'status-tag--' + row.express_status"
                 >
                   {{ getExpressStatusText(row.express_status) }}
                 </el-tag>
@@ -523,11 +544,7 @@
                 <span class="customer-name">{{ row.order?.customer?.name || '-' }}</span>
                 <el-tag
                   size="small"
-                  :style="{
-                    backgroundColor: getExpressBgColor(row.express_status),
-                    color: getExpressStatusColor(row.express_status),
-                    border: 'none'
-                  }"
+                  :class="'status-tag--' + row.express_status"
                 >
                   {{ getExpressStatusText(row.express_status) }}
                 </el-tag>
@@ -641,11 +658,7 @@
               <template #default="{ row }">
                 <el-tag
                   size="small"
-                  :style="{
-                    backgroundColor: getPickupBgColor(row.pickup_status),
-                    color: getPickupStatusColor(row.pickup_status),
-                    border: 'none'
-                  }"
+                  :class="'status-tag--' + row.pickup_status"
                 >
                   {{ getPickupStatusText(row.pickup_status) }}
                 </el-tag>
@@ -711,11 +724,7 @@
                 <span class="customer-name">{{ row.order?.customer?.name || '-' }}</span>
                 <el-tag
                   size="small"
-                  :style="{
-                    backgroundColor: getPickupBgColor(row.pickup_status),
-                    color: getPickupStatusColor(row.pickup_status),
-                    border: 'none'
-                  }"
+                  :class="'status-tag--' + row.pickup_status"
                 >
                   {{ getPickupStatusText(row.pickup_status) }}
                 </el-tag>
@@ -1025,7 +1034,7 @@ import dayjs from 'dayjs'
 import { useDeliveryStore } from '@/stores/deliveries'
 import { useOrderStore } from '@/stores/orders'
 import { getAmapService, DEFAULT_DEPARTURE, DEFAULT_DEPARTURE_ADDRESS, type Location } from '@/api/amap'
-import { exportPendingDeliveries } from '@/api/export'
+import { exportSelfDeliveries, exportExpressDeliveries, exportPickupDeliveries } from '@/api/export'
 import {
   fetchExpressDeliveries,
   fetchExpressCompanies,
@@ -1059,6 +1068,9 @@ const orderStore = useOrderStore()
 
 // Tab state
 const activeTab = ref('self')
+
+// Self delivery filter
+const selfDeliveryFilter = ref<string>('')
 
 // Express shipping state
 const expressDeliveries = ref<any[]>([])
@@ -1318,12 +1330,29 @@ function handleSelectionChange(selection: OrderDelivery[]) {
   selectedDeliveries.value = selection
 }
 
+const exportCount = computed(() => {
+  if (activeTab.value === 'self') return filteredSelfDeliveries.value.length
+  if (activeTab.value === 'express') return filteredExpressDeliveries.value.length
+  if (activeTab.value === 'pickup') return filteredPickupDeliveries.value.length
+  return 0
+})
+
 function handleExport() {
-  exportPendingDeliveries(deliveryStore.pendingDeliveries)
-  ElMessage.success(`已导出 ${deliveryStore.pendingDeliveries.length} 条待配送`)
+  if (activeTab.value === 'self') {
+    exportSelfDeliveries(filteredSelfDeliveries.value)
+    ElMessage.success(`已导出 ${filteredSelfDeliveries.value.length} 条自送配送`)
+  } else if (activeTab.value === 'express') {
+    exportExpressDeliveries(filteredExpressDeliveries.value)
+    ElMessage.success(`已导出 ${filteredExpressDeliveries.value.length} 条快递发货`)
+  } else if (activeTab.value === 'pickup') {
+    exportPickupDeliveries(filteredPickupDeliveries.value)
+    ElMessage.success(`已导出 ${filteredPickupDeliveries.value.length} 条自提`)
+  }
 }
 
 function toggleDeliverySelection(delivery: OrderDelivery) {
+  // Only pending deliveries can be selected for tasks
+  if (delivery.status !== 'pending') return
   const index = selectedDeliveries.value.findIndex(d => d.id === delivery.id)
   if (index >= 0) {
     selectedDeliveries.value.splice(index, 1)
@@ -1346,32 +1375,32 @@ function getTaskStatusType(status: DeliveryTaskStatus) {
   return map[status] || 'info'
 }
 
-function getTaskStatusColor(status: DeliveryTaskStatus) {
-  const map: Record<DeliveryTaskStatus, string> = {
-    planning: '#909399',
-    in_progress: '#00C9B7',
-    completed: '#67C23A',
-    cancelled: '#F56C6C',
-  }
-  return map[status] || ''
-}
-
-function getTaskBgColor(status: DeliveryTaskStatus) {
-  const map: Record<DeliveryTaskStatus, string> = {
-    planning: '#F4F4F5',
-    in_progress: '#E8FAF8',
-    completed: '#F0F9EB',
-    cancelled: '#FEF0F0',
-  }
-  return map[status] || ''
-}
-
 function getTaskStatusText(status: DeliveryTaskStatus) {
   const map: Record<DeliveryTaskStatus, string> = {
     planning: '规划中',
     in_progress: '进行中',
     completed: '已完成',
     cancelled: '已取消',
+  }
+  return map[status] || status
+}
+
+function getTaskStatusClass(status: DeliveryTaskStatus): string {
+  const map: Record<DeliveryTaskStatus, string> = {
+    planning: 'status-tag--planning',
+    in_progress: 'status-tag--in_progress',
+    completed: 'status-tag--completed_task',
+    cancelled: 'status-tag--cancelled_task',
+  }
+  return map[status] || ''
+}
+
+function getSelfDeliveryStatusText(status: string): string {
+  const map: Record<string, string> = {
+    pending: '待配送',
+    assigned: '已分配',
+    delivering: '配送中',
+    delivered: '已送达',
   }
   return map[status] || status
 }
@@ -1760,7 +1789,7 @@ function renderRouteOnMap() {
 
     currentPolyline.value = new AMap.Polyline({
       path,
-      strokeColor: '#409eff',
+      strokeColor: '#C84B31',
       strokeWeight: 6,
       strokeOpacity: 0.8,
     })
@@ -1904,6 +1933,23 @@ async function saveTrackingNumber() {
 }
 
 // Computed for filtered express deliveries
+// Filtered self deliveries
+// All self deliveries: pending (unassigned) + those in delivery tasks
+const allSelfDeliveries = computed(() => {
+  const pending = deliveryStore.pendingDeliveries as any[]
+  const inTasks = deliveryStore.deliveryTasks.flatMap((t: DeliveryTask) =>
+    (t.deliveries || [])
+      .filter((d: any) => !d.delivery_method || d.delivery_method === 'self')
+      .map((d: any) => ({ ...d, _taskName: t.name, _taskStatus: t.status }))
+  )
+  return [...pending, ...inTasks]
+})
+
+const filteredSelfDeliveries = computed(() => {
+  if (!selfDeliveryFilter.value) return allSelfDeliveries.value
+  return allSelfDeliveries.value.filter((d: any) => d.status === selfDeliveryFilter.value)
+})
+
 const filteredExpressDeliveries = computed(() => {
   let result = expressDeliveries.value
   if (expressFilters.status) {
@@ -1992,19 +2038,8 @@ function callCustomer(phone: string | undefined) {
    Deliveries Page - Distinctive Design
    ======================================== */
 
-/* CSS Custom Properties - Brand Colors */
+/* CSS Custom Properties - Brand Colors (now in global theme.css) */
 .page-container {
-  --tomato-red: #C84B31;
-  --tomato-red-light: #EC6B4F;
-  --tomato-red-dark: #A33D28;
-  --harvest-gold: #D4A574;
-  --earth-brown: #5C4033;
-  --cream: #FDF6E3;
-  --soft-sage: #7D9D6C;
-  --soft-sage-light: #B8C9A8;
-  --warm-gray: #6B5B50;
-  --warm-gray-light: #A89888;
-  --sunrise-orange: #E8854A;
 
   position: relative;
   min-height: 100%;
@@ -2025,6 +2060,9 @@ function callCustomer(phone: string | undefined) {
 
 /* Page Title - Distinctive Typography */
 .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 8px;
 }
 

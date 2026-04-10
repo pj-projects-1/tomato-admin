@@ -58,14 +58,14 @@ export function getExpressStatusText(status: ExpressStatus): string {
  */
 export function getExpressStatusColor(status: ExpressStatus): string {
   const map: Record<ExpressStatus, string> = {
-    pending_pack: '#909399',     // Gray
-    pending_label: '#E6A23C',    // Orange
-    pending_dropoff: '#409EFF',  // Blue
-    in_transit: '#00C9B7',       // Teal
-    delivered: '#67C23A',        // Green
-    exception: '#F56C6C',        // Red
+    pending_pack: '#6B5B50',     // Warm gray
+    pending_label: '#D4A574',    // Gold
+    pending_dropoff: '#C84B31',  // Tomato red
+    in_transit: '#7D9D6C',       // Sage
+    delivered: '#5A7D4A',        // Dark sage
+    exception: '#CF4B3F',        // Danger red
   }
-  return map[status] || '#909399'
+  return map[status] || '#6B5B50'
 }
 
 /**
@@ -74,10 +74,10 @@ export function getExpressStatusColor(status: ExpressStatus): string {
 export function getExpressBgColor(status: ExpressStatus): string {
   const map: Record<ExpressStatus, string> = {
     pending_pack: '#F4F4F5',     // Light gray
-    pending_label: '#FDF6EC',    // Light orange
-    pending_dropoff: '#ECF5FF',  // Light blue
+    pending_label: '#FDF6EC',    // Light gold
+    pending_dropoff: '#FDF0EC',  // Light tomato
     in_transit: '#E8FAF8',       // Light teal
-    delivered: '#F0F9EB',        // Light green
+    delivered: '#EEF5E9',        // Light sage
     exception: '#FEF0F0',        // Light red
   }
   return map[status] || '#F4F4F5'
@@ -494,10 +494,10 @@ export function getPickupStatusText(status: PickupStatus): string {
  */
 export function getPickupStatusColor(status: PickupStatus): string {
   const map: Record<PickupStatus, string> = {
-    pending: '#E6A23C',   // Orange
-    picked_up: '#67C23A', // Green
+    pending: '#D4A574',   // Harvest gold
+    picked_up: '#5A7D4A', // Dark sage
   }
-  return map[status] || '#909399'
+  return map[status] || '#6B5B50'
 }
 
 /**
@@ -505,8 +505,8 @@ export function getPickupStatusColor(status: PickupStatus): string {
  */
 export function getPickupBgColor(status: PickupStatus): string {
   const map: Record<PickupStatus, string> = {
-    pending: '#FDF6EC',    // Light orange
-    picked_up: '#F0F9EB',  // Light green
+    pending: '#FDF6EC',    // Light gold
+    picked_up: '#EEF5E9',  // Light sage
   }
   return map[status] || '#F4F4F5'
 }

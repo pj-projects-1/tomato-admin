@@ -544,7 +544,7 @@ function renderMapElements() {
 
     const polyline = new AMap.Polyline({
       path,
-      strokeColor: '#409eff',
+      strokeColor: '#C84B31',
       strokeWeight: 6,
       strokeOpacity: 0.8,
     })
@@ -921,7 +921,7 @@ ${lines.join('\n\n')}
 }
 
 .stat-value.delivered {
-  color: #67c23a;
+  color: var(--soft-sage);
 }
 
 .stat-unit {
@@ -968,7 +968,7 @@ ${lines.join('\n\n')}
   justify-content: center;
   width: 24px;
   height: 24px;
-  background: #409eff;
+  background: var(--tomato-red);
   color: #fff;
   border-radius: 50%;
   font-size: 12px;
@@ -1037,7 +1037,7 @@ ${lines.join('\n\n')}
 .sort-index {
   width: 24px;
   height: 24px;
-  background: #409eff;
+  background: var(--tomato-red);
   color: #fff;
   border-radius: 50%;
   display: flex;
@@ -1063,7 +1063,7 @@ ${lines.join('\n\n')}
 }
 
 .recipient-name {
-  color: #67c23a;
+  color: var(--soft-sage);
 }
 
 .sort-address {
@@ -1089,15 +1089,15 @@ ${lines.join('\n\n')}
 }
 
 :deep(.marker.start) {
-  background: #67c23a;
+  background: var(--soft-sage);
 }
 
 :deep(.marker.delivery) {
-  background: #409eff;
+  background: var(--tomato-red);
 }
 
 :deep(.marker.delivery.completed) {
-  background: #67c23a;
+  background: var(--soft-sage);
 }
 
 :deep(.el-card__header) {

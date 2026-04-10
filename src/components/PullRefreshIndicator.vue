@@ -130,7 +130,7 @@ const statusText = computed(() => {
 }
 
 .pull-spinner svg {
-  color: #409eff;
+  color: var(--tomato-red);
 }
 
 @keyframes spin {

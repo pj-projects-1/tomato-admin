@@ -148,12 +148,12 @@ defineExpose({ reset })
 }
 
 .address-item:hover {
-  border-color: #409eff;
+  border-color: var(--tomato-red);
   background-color: #f0f7ff;
 }
 
 .address-item.selected {
-  border-color: #409eff;
+  border-color: var(--tomato-red);
   background-color: #ecf5ff;
 }
 
@@ -185,7 +185,7 @@ defineExpose({ reset })
 }
 
 .check-icon {
-  color: #409eff;
+  color: var(--tomato-red);
   font-size: 18px;
   margin-top: 2px;
 }

@@ -9,7 +9,7 @@
     <!-- Error state only shown on protected routes, not on login page -->
     <div v-else-if="showError && !isPublicRoute" class="auth-initializer">
       <div class="auth-error">
-        <el-icon :size="48" color="#f56c6c"><WarningFilled /></el-icon>
+        <el-icon :size="48" color="#CF4B3F"><WarningFilled /></el-icon>
         <div class="error-title">连接失败</div>
         <div class="error-message">{{ authStore.initError }}</div>
         <el-button type="primary" @click="handleRetry" :loading="retrying">
@@ -76,7 +76,7 @@ async function handleRetry() {
   width: 40px;
   height: 40px;
   border: 3px solid #e4e7ed;
-  border-top-color: #409eff;
+  border-top-color: var(--tomato-red);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

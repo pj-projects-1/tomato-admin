@@ -860,7 +860,7 @@ async function confirmDeleteUser() {
 
 .reset-password-content .warning-icon {
   font-size: 48px;
-  color: #e6a23c;
+  color: var(--harvest-gold);
   margin-bottom: 16px;
 }
 
@@ -878,7 +878,7 @@ async function confirmDeleteUser() {
 
 .delete-user-content .danger-icon {
   font-size: 56px;
-  color: #f56c6c;
+  color: var(--status-cancelled);
   margin-bottom: 12px;
 }
 

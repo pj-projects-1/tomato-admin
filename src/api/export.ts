@@ -131,21 +131,68 @@ export function exportStocks(stocks: any[], filenameSuffix = '') {
 }
 
 /**
- * 导出待配送列表
+ * 导出自送配送列表
  */
-export function exportPendingDeliveries(deliveries: any[], filenameSuffix = '') {
-  const headers = ['客户', '收件人', '电话', '地址', '数量', '订单状态']
+export function exportSelfDeliveries(deliveries: any[], filenameSuffix = '') {
+  const headers = ['客户', '订单号', '收件人', '电话', '地址', '数量', '状态', '配送任务', '创建时间']
   const rows = deliveries.map(d => [
     d.order?.customer?.name || '',
+    d.order?.order_number || '',
     d.recipient_name || d.order?.customer?.name || '',
     d.recipient_phone || d.order?.customer?.phone || '',
     d.address,
     d.quantity,
     getDeliveryStatusText(d.status),
+    d.delivery_task?.name || '',
+    formatDateTime(d.created_at),
   ])
 
   const csv = toCSV(headers, rows)
-  downloadFile(csv, `待配送列表${filenameSuffix}_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
+  downloadFile(csv, `自送配送列表${filenameSuffix}_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
+}
+
+/**
+ * 导出快递发货列表
+ */
+export function exportExpressDeliveries(deliveries: any[], filenameSuffix = '') {
+  const headers = ['客户', '订单号', '快递公司', '运单号', '状态', '收件人', '电话', '地址', '数量', '创建时间']
+  const rows = deliveries.map(d => {
+    const trackingNumbers = getTrackingNumbersFromDelivery(d)
+    return [
+      d.order?.customer?.name || '',
+      d.order?.order_number || '',
+      d.express_company || '',
+      trackingNumbers,
+      getExpressStatusText(d.express_status),
+      d.recipient_name || d.order?.customer?.name || '',
+      d.recipient_phone || d.order?.customer?.phone || '',
+      d.address,
+      d.quantity,
+      formatDateTime(d.created_at),
+    ]
+  })
+
+  const csv = toCSV(headers, rows)
+  downloadFile(csv, `快递发货列表${filenameSuffix}_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
+}
+
+/**
+ * 导出自提管理列表
+ */
+export function exportPickupDeliveries(deliveries: any[], filenameSuffix = '') {
+  const headers = ['客户', '订单号', '数量', '状态', '联系电话', '下单时间', '自提时间']
+  const rows = deliveries.map(d => [
+    d.order?.customer?.name || '',
+    d.order?.order_number || '',
+    d.quantity,
+    getPickupStatusText(d.pickup_status),
+    d.recipient_phone || d.order?.customer?.phone || '',
+    formatDateTime(d.created_at),
+    d.picked_up_at ? formatDateTime(d.picked_up_at) : '',
+  ])
+
+  const csv = toCSV(headers, rows)
+  downloadFile(csv, `自提列表${filenameSuffix}_${formatDateFile()}.csv`, 'text/csv;charset=utf-8')
 }
 
 /**
@@ -602,4 +649,35 @@ function getTaskStatusText(status: string): string {
     cancelled: '已取消',
   }
   return map[status] || status
+}
+
+function getExpressStatusText(status: string): string {
+  const map: Record<string, string> = {
+    pending_pack: '待包装',
+    pending_label: '待打印面单',
+    pending_dropoff: '待寄件',
+    in_transit: '运输中',
+    delivered: '已签收',
+    exception: '异常',
+  }
+  return map[status] || status
+}
+
+function getPickupStatusText(status: string): string {
+  const map: Record<string, string> = {
+    pending: '待自提',
+    picked_up: '已自提',
+  }
+  return map[status] || status
+}
+
+function getTrackingNumbersFromDelivery(d: any): string {
+  // Support both new tracking_numbers structure and legacy single tracking_number
+  if (d.tracking_numbers?.items?.length) {
+    return d.tracking_numbers.items
+      .map((item: any) => item.number)
+      .filter((n: string) => n?.trim())
+      .join('; ')
+  }
+  return d.tracking_number || ''
 }

@@ -1,10 +1,12 @@
+@import './styles/theme.css';
+
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Noto Sans SC', Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color: #213547;
-  background-color: #f5f7fa;
+  color: var(--text-primary);
+  background-color: var(--bg-page);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -34,26 +36,19 @@ html, body, #app {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #F0EBE3;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: #C4B8AB;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: var(--warm-gray-light);
 }
 
-/* Element Plus overrides */
-.el-table {
-  --el-table-header-bg-color: #fafafa;
-}
-
-.el-dialog {
-  --el-dialog-border-radius: 8px;
-}
+/* Element Plus overrides are now in theme.css */
 
 /* Page common styles */
 .page-container {
@@ -70,7 +65,7 @@ html, body, #app {
 .page-title {
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
+  color: var(--earth-brown);
 }
 
 /* Card styles */
@@ -84,25 +79,26 @@ html, body, #app {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* Status colors */
+/* Status colors — now using CSS utility classes from theme.css */
+/* Legacy color classes kept for gradual migration */
 .status-pending {
-  color: #e6a23c;
+  color: var(--status-pending);
 }
 
 .status-confirmed {
-  color: #409eff;
+  color: var(--status-confirmed);
 }
 
 .status-delivering {
-  color: #67c23a;
+  color: var(--status-delivering);
 }
 
 .status-completed {
-  color: #67c23a;
+  color: var(--status-completed);
 }
 
 .status-cancelled {
-  color: #f56c6c;
+  color: var(--status-cancelled);
 }
 
 /* Map container */
@@ -121,10 +117,10 @@ html, body, #app {
 .form-section-title {
   font-size: 14px;
   font-weight: 500;
-  color: #606266;
+  color: var(--text-regular);
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border-color);
 }
 
 /* Filter bar */

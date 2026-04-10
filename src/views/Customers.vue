@@ -259,11 +259,7 @@
                   <span class="order-number">{{ order.order_number }}</span>
                   <el-tag
                     size="small"
-                    :style="{
-                      backgroundColor: getOrderStatusBg(order.status),
-                      color: getOrderStatusColor(order.status),
-                      border: 'none'
-                    }"
+                    :class="'status-tag--' + order.status"
                   >{{ getOrderStatusText(order.status) }}</el-tag>
                 </div>
                 <div class="order-meta">
@@ -629,21 +625,21 @@ function getOrderStatusText(status: string): string {
 
 function getOrderStatusColor(status: string): string {
   const map: Record<string, string> = {
-    pending: '#E6A23C',
-    confirmed: '#409EFF',
-    delivering: '#00C9B7',
-    completed: '#67C23A',
-    cancelled: '#F56C6C',
+    pending: '#D4A574',
+    confirmed: '#C84B31',
+    delivering: '#7D9D6C',
+    completed: '#5A7D4A',
+    cancelled: '#CF4B3F',
   }
-  return map[status] || '#909399'
+  return map[status] || '#6B5B50'
 }
 
 function getOrderStatusBg(status: string): string {
   const map: Record<string, string> = {
     pending: '#FDF6EC',
-    confirmed: '#ECF5FF',
+    confirmed: '#FDF0EC',
     delivering: '#E8FAF8',
-    completed: '#F0F9EB',
+    completed: '#EEF5E9',
     cancelled: '#FEF0F0',
   }
   return map[status] || '#F4F4F5'
@@ -845,14 +841,14 @@ function viewOrders(customer: Customer) {
   justify-content: space-between;
   padding: 12px 16px;
   margin-bottom: 16px;
-  background: #f0f9ff;
-  border: 1px solid #b3d9ff;
+  background: var(--status-confirmed-bg);
+  border: 1px solid var(--el-color-primary-light-7);
   border-radius: 4px;
 }
 
 .export-info {
   font-weight: 500;
-  color: #409eff;
+  color: var(--tomato-red);
 }
 
 .address-list {
@@ -1015,8 +1011,8 @@ function viewOrders(customer: Customer) {
 }
 
 .address-card.is-default {
-  background: #f0f9eb;
-  border-left-color: #67c23a;
+  background: var(--el-color-success-light-9);
+  border-left-color: var(--soft-sage);
 }
 
 .address-card-header {
@@ -1105,12 +1101,12 @@ function viewOrders(customer: Customer) {
 }
 
 .order-amount {
-  color: #f56c6c;
+  color: var(--el-color-danger);
   font-weight: 500;
 }
 
 .order-boxes {
-  color: #409eff;
+  color: var(--tomato-red);
 }
 
 .detail-edit {
@@ -1183,8 +1179,8 @@ function viewOrders(customer: Customer) {
   }
 
   .customer-mobile-card.export-selectable.selected {
-    background: #ecf5ff;
-    border-color: #409eff;
+    background: var(--status-confirmed-bg);
+    border-color: var(--tomato-red);
   }
 
   .customer-mobile-card .card-header-row {

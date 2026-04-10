@@ -233,22 +233,22 @@ function navigateTo(path: string) {
 
 .task-icon.delivery {
   background: #ecf5ff;
-  color: #409eff;
+  color: var(--tomato-red);
 }
 
 .task-icon.express {
   background: #fef0f0;
-  color: #f56c6c;
+  color: var(--status-cancelled);
 }
 
 .task-icon.confirm {
   background: #fdf6ec;
-  color: #e6a23c;
+  color: var(--harvest-gold);
 }
 
 .task-icon.pickup {
   background: #f0f9eb;
-  color: #67c23a;
+  color: var(--soft-sage);
 }
 
 .task-title {

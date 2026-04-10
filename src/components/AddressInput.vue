@@ -21,7 +21,7 @@
     </template>
     <template #suffix>
       <el-icon v-if="loading" class="is-loading"><Loading /></el-icon>
-      <el-icon v-else-if="hasLocation" color="#67C23A"><LocationFilled /></el-icon>
+      <el-icon v-else-if="hasLocation" color="#7D9D6C"><LocationFilled /></el-icon>
     </template>
   </el-autocomplete>
 </template>

@@ -39,7 +39,7 @@
         <el-card shadow="never">
           <template #header>
             <span>订单信息</span>
-            <el-tag size="small" :style="{ backgroundColor: getStatusBgColor(order.status), color: getStatusColor(order.status), border: 'none', marginLeft: '8px' }">
+            <el-tag size="small" :class="'status-tag--' + order.status" style="margin-left: 8px">
               {{ getStatusText(order.status) }}
             </el-tag>
           </template>
@@ -53,7 +53,7 @@
             </el-descriptions-item>
             <el-descriptions-item label="总箱数">{{ order.total_boxes }} 箱</el-descriptions-item>
             <el-descriptions-item label="金额">
-              <span style="font-size: 18px; color: #f56c6c;">¥{{ order.total_amount || 0 }}</span>
+              <span style="font-size: 18px; color: var(--el-color-danger);">¥{{ order.total_amount || 0 }}</span>
             </el-descriptions-item>
             <el-descriptions-item label="付款状态">
               <el-tag :type="order.paid ? 'success' : 'warning'">
@@ -125,7 +125,7 @@
                     </el-tag>
                   </div>
                   <div class="delivery-header-actions">
-                    <el-tag size="small" :style="{ backgroundColor: getDeliveryDisplayBgColor(delivery), color: getDeliveryDisplayColor(delivery), border: 'none' }">
+                    <el-tag size="small" :class="getDeliveryStatusClass(delivery)">
                       {{ getDeliveryDisplayText(delivery) }}
                     </el-tag>
                     <el-button
@@ -279,7 +279,7 @@
             :min="1"
             style="width: 100%"
           />
-          <div v-if="quantityWarning" style="color: #e6a23c; font-size: 12px; margin-top: 4px;">
+          <div v-if="quantityWarning" style="color: var(--harvest-gold); font-size: 12px; margin-top: 4px;">
             {{ quantityWarning }}
           </div>
         </el-form-item>
@@ -451,21 +451,21 @@ function getStatusType(status: OrderStatus) {
 
 function getStatusColor(status: OrderStatus) {
   const map: Record<OrderStatus, string> = {
-    pending: '#E6A23C',      // Orange - needs attention
-    confirmed: '#409EFF',    // Blue - ready for action
-    delivering: '#00C9B7',   // Teal - in progress, active
-    completed: '#67C23A',    // Green - success, done
-    cancelled: '#F56C6C',    // Red - danger, cancelled
+    pending: '#D4A574',      // Gold - needs attention
+    confirmed: '#C84B31',    // Tomato red - ready for action
+    delivering: '#7D9D6C',   // Sage - in progress, active
+    completed: '#5A7D4A',    // Dark sage - success, done
+    cancelled: '#CF4B3F',    // Danger red - cancelled
   }
   return map[status] || ''
 }
 
 function getStatusBgColor(status: OrderStatus) {
   const map: Record<OrderStatus, string> = {
-    pending: '#FDF6EC',      // Light orange bg
-    confirmed: '#ECF5FF',    // Light blue bg
+    pending: '#FDF6EC',      // Light gold bg
+    confirmed: '#FDF0EC',    // Light tomato bg
     delivering: '#E8FAF8',   // Light teal bg
-    completed: '#F0F9EB',    // Light green bg
+    completed: '#EEF5E9',    // Light sage bg
     cancelled: '#FEF0F0',    // Light red bg
   }
   return map[status] || ''
@@ -494,10 +494,10 @@ function getDeliveryStatusType(status: DeliveryStatus) {
 
 function getDeliveryStatusColor(status: DeliveryStatus) {
   const map: Record<DeliveryStatus, string> = {
-    pending: '#909399',     // Gray - waiting
-    assigned: '#E6A23C',    // Orange - assigned but not started
-    delivering: '#00C9B7',  // Teal - in progress
-    delivered: '#67C23A',   // Green - completed
+    pending: '#6B5B50',     // Warm gray - waiting
+    assigned: '#D4A574',    // Gold - assigned but not started
+    delivering: '#7D9D6C',  // Sage - in progress
+    delivered: '#5A7D4A',   // Dark sage - completed
   }
   return map[status] || ''
 }
@@ -505,9 +505,9 @@ function getDeliveryStatusColor(status: DeliveryStatus) {
 function getDeliveryBgColor(status: DeliveryStatus) {
   const map: Record<DeliveryStatus, string> = {
     pending: '#F4F4F5',     // Light gray bg
-    assigned: '#FDF6EC',    // Light orange bg
+    assigned: '#FDF6EC',    // Light gold bg
     delivering: '#E8FAF8',  // Light teal bg
-    delivered: '#F0F9EB',   // Light green bg
+    delivered: '#EEF5E9',   // Light sage bg
   }
   return map[status] || ''
 }
@@ -553,6 +553,16 @@ function getDeliveryDisplayBgColor(delivery: OrderDelivery): string {
   return getDeliveryBgColor(delivery.status)
 }
 
+function getDeliveryStatusClass(delivery: OrderDelivery): string {
+  if (delivery.delivery_method === 'pickup') {
+    return delivery.pickup_status === 'picked_up' ? 'status-tag--picked_up' : 'status-tag--pending'
+  }
+  if (delivery.delivery_method === 'express' && delivery.express_status) {
+    return 'status-tag--' + delivery.express_status
+  }
+  return 'status-tag--' + delivery.status
+}
+
 function getDeliveryTimelineType(delivery: OrderDelivery): string {
   if (delivery.delivery_method === 'pickup') {
     const map: Record<string, string> = {
@@ -596,18 +606,18 @@ function getPickupStatusText(status: string): string {
 
 function getPickupStatusColor(status: string): string {
   const map: Record<string, string> = {
-    pending: '#e6a23c',
-    picked_up: '#67c23a',
+    pending: '#D4A574',
+    picked_up: '#5A7D4A',
   }
-  return map[status] || '#909399'
+  return map[status] || '#6B5B50'
 }
 
 function getPickupBgColor(status: string): string {
   const map: Record<string, string> = {
-    pending: '#fdf6ec',
-    picked_up: '#f0f9eb',
+    pending: '#FDF6EC',
+    picked_up: '#EEF5E9',
   }
-  return map[status] || '#f5f7fa'
+  return map[status] || '#F4F4F5'
 }
 
 function getExpressCompanyName(code?: string): string {
@@ -997,7 +1007,7 @@ async function deleteDelivery(delivery: OrderDelivery) {
   font-family: monospace;
   font-size: 18px;
   font-weight: 600;
-  color: #409eff;
+  color: var(--tomato-red);
 }
 
 .header-actions {
@@ -1054,7 +1064,7 @@ async function deleteDelivery(delivery: OrderDelivery) {
 }
 
 .tracking-link {
-  color: #409eff;
+  color: var(--tomato-red);
   text-decoration: none;
 }
 

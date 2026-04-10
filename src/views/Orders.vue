@@ -136,11 +136,7 @@
                   <template #default="{ row: delivery }">
                     <el-tag
                       size="small"
-                      :style="{
-                        backgroundColor: getDeliveryDisplayBgColor(delivery),
-                        color: getDeliveryDisplayColor(delivery),
-                        border: 'none'
-                      }"
+                      :class="getDeliveryStatusClass(delivery)"
                     >
                       {{ getDeliveryDisplayText(delivery) }}
                     </el-tag>
@@ -244,7 +240,7 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" width="80" align="center">
           <template #default="{ row }">
-            <el-tag size="small" :style="{ backgroundColor: getStatusBgColor(row.status), color: getStatusColor(row.status), border: 'none' }">
+            <el-tag size="small" :class="'status-tag--' + row.status">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
@@ -310,7 +306,7 @@
             <div class="order-mobile-card">
               <div class="card-header-row">
                 <span class="order-number-mobile">{{ item.order_number || item.id.slice(0, 8) }}</span>
-                <el-tag size="small" :style="{ backgroundColor: getStatusBgColor(item.status), color: getStatusColor(item.status), border: 'none' }">
+                <el-tag size="small" :class="'status-tag--' + item.status">
                   {{ getStatusText(item.status) }}
                 </el-tag>
               </div>
@@ -563,7 +559,7 @@
     <el-dialog v-model="paymentDialogVisible" title="确认收款" width="400px">
       <el-form label-width="80px">
         <el-form-item label="金额">
-          <span style="font-size: 20px; color: #409eff;">
+          <span style="font-size: 20px; color: var(--tomato-red);">
             ¥{{ selectedOrder?.total_amount || 0 }}
           </span>
         </el-form-item>
@@ -852,22 +848,22 @@ function getStatusType(status: OrderStatus) {
 
 function getStatusColor(status: OrderStatus) {
   const map: Record<OrderStatus, string> = {
-    pending: '#E6A23C',      // Orange - needs attention
-    confirmed: '#409EFF',    // Blue - ready for action
-    delivering: '#00C9B7',   // Teal - in progress, active
-    completed: '#67C23A',    // Green - success, done
-    cancelled: '#F56C6C',    // Red - danger, cancelled
+    pending: '#D4A574',      // Harvest gold
+    confirmed: '#C84B31',    // Tomato red
+    delivering: '#7D9D6C',   // Soft sage
+    completed: '#5A7D4A',    // Soft sage dark
+    cancelled: '#CF4B3F',    // Status cancelled
   }
   return map[status] || ''
 }
 
 function getStatusBgColor(status: OrderStatus) {
   const map: Record<OrderStatus, string> = {
-    pending: '#FDF6EC',      // Light orange bg
-    confirmed: '#ECF5FF',    // Light blue bg
-    delivering: '#E8FAF8',   // Light teal bg
-    completed: '#F0F9EB',    // Light green bg
-    cancelled: '#FEF0F0',    // Light red bg
+    pending: '#FDF6EC',      // status-pending-bg
+    confirmed: '#FDF0EC',    // status-confirmed-bg
+    delivering: '#E8FAF8',   // status-delivering-bg
+    completed: '#EEF5E9',    // status-completed-bg
+    cancelled: '#FEF0F0',    // status-cancelled-bg
   }
   return map[status] || ''
 }
@@ -911,12 +907,12 @@ function getDeliveryDisplayColor(delivery: OrderDelivery): string {
   }
   // Self delivery color map
   const map: Record<string, string> = {
-    pending: '#909399',
-    assigned: '#E6A23C',
-    delivering: '#00C9B7',
-    delivered: '#67C23A',
+    pending: '#A89888',
+    assigned: '#D4A574',
+    delivering: '#7D9D6C',
+    delivered: '#5A7D4A',
   }
-  return map[delivery.status] || '#909399'
+  return map[delivery.status] || '#A89888'
 }
 
 function getDeliveryDisplayBgColor(delivery: OrderDelivery): string {
@@ -931,9 +927,27 @@ function getDeliveryDisplayBgColor(delivery: OrderDelivery): string {
     pending: '#F4F4F5',
     assigned: '#FDF6EC',
     delivering: '#E8FAF8',
-    delivered: '#F0F9EB',
+    delivered: '#EEF5E9',
   }
   return map[delivery.status] || '#F4F4F5'
+}
+
+// Get the status-tag CSS class for a delivery item
+function getDeliveryStatusClass(delivery: OrderDelivery): string {
+  if (delivery.delivery_method === 'pickup') {
+    return delivery.pickup_status === 'picked_up' ? 'status-tag--picked_up' : 'status-tag--pending'
+  }
+  if (delivery.delivery_method === 'express') {
+    return 'status-tag--' + (delivery.express_status || 'pending_pack')
+  }
+  // Self delivery
+  const map: Record<string, string> = {
+    pending: 'status-tag--pending',
+    assigned: 'status-tag--assigned',
+    delivering: 'status-tag--delivering',
+    delivered: 'status-tag--delivered',
+  }
+  return map[delivery.status] || 'status-tag--pending'
 }
 
 // Pickup status helpers
@@ -947,18 +961,18 @@ function getPickupStatusText(status: string): string {
 
 function getPickupStatusColor(status: string): string {
   const map: Record<string, string> = {
-    pending: '#e6a23c',
-    picked_up: '#67c23a',
+    pending: '#D4A574',
+    picked_up: '#5A7D4A',
   }
-  return map[status] || '#909399'
+  return map[status] || '#A89888'
 }
 
 function getPickupBgColor(status: string): string {
   const map: Record<string, string> = {
-    pending: '#fdf6ec',
-    picked_up: '#f0f9eb',
+    pending: '#FDF6EC',
+    picked_up: '#EEF5E9',
   }
-  return map[status] || '#f5f7fa'
+  return map[status] || '#F4F4F5'
 }
 
 function getSelfDeliveryCount(deliveries?: OrderDelivery[]): number {
@@ -1250,13 +1264,13 @@ async function batchDelete() {
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   font-weight: 600;
   font-size: 13px;
-  color: #409eff;
+  color: var(--tomato-red);
   letter-spacing: 0.5px;
 }
 
 .amount-text {
   font-weight: 500;
-  color: #303133;
+  color: var(--earth-brown);
 }
 
 /* Stock banner in order dialog */
@@ -1266,26 +1280,26 @@ async function batchDelete() {
   gap: 8px;
   padding: 10px 16px;
   margin-bottom: 16px;
-  background: #f0f9eb;
+  background: var(--status-completed-bg);
   border-radius: 4px;
   font-size: 14px;
 }
 
 .stock-banner.is-warning {
-  background: #fef0f0;
+  background: var(--status-cancelled-bg);
 }
 
 .stock-label {
-  color: #909399;
+  color: var(--warm-gray-light);
 }
 
 .stock-value {
   font-weight: 600;
-  color: #303133;
+  color: var(--earth-brown);
 }
 
 .stock-value.text-danger {
-  color: #f56c6c;
+  color: var(--status-cancelled);
 }
 
 .stock-divider {
@@ -1294,7 +1308,7 @@ async function batchDelete() {
 }
 
 .stock-warning-icon {
-  color: #f56c6c;
+  color: var(--status-cancelled);
   margin-left: auto;
 }
 
@@ -1333,16 +1347,16 @@ async function batchDelete() {
 }
 
 .delivery-summary .remaining {
-  color: #e6a23c;
+  color: var(--harvest-gold);
 }
 
 .delivery-summary .excess {
-  color: #f56c6c;
+  color: var(--status-cancelled);
   font-weight: 500;
 }
 
 .delivery-summary .complete {
-  color: #67c23a;
+  color: var(--soft-sage-dark);
   font-weight: 500;
 }
 
@@ -1368,14 +1382,14 @@ async function batchDelete() {
   justify-content: space-between;
   padding: 12px 16px;
   margin-bottom: 16px;
-  background: #f0f9ff;
-  border: 1px solid #b3d9ff;
+  background: var(--status-confirmed-bg);
+  border: 1px solid var(--border-color-light);
   border-radius: 4px;
 }
 
 .batch-info {
   font-weight: 500;
-  color: #409eff;
+  color: var(--tomato-red);
 }
 
 .delivery-item {
@@ -1417,7 +1431,7 @@ async function batchDelete() {
 .delivery-expanded-title {
   font-weight: 500;
   margin-bottom: 12px;
-  color: #606266;
+  color: var(--warm-gray);
 }
 
 .delivery-expanded .truncated-address {
@@ -1436,7 +1450,7 @@ async function batchDelete() {
 }
 
 .delivery-expanded .tracking-link {
-  color: #409eff;
+  color: var(--tomato-red);
   text-decoration: none;
   font-size: inherit;
 }
@@ -1463,16 +1477,16 @@ async function batchDelete() {
 }
 
 .badge-self {
-  background: #ECF5FF;
-  color: #409EFF;
+  background: var(--status-confirmed-bg);
+  color: var(--tomato-red);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 11px;
 }
 
 .badge-express {
-  background: #FDF6EC;
-  color: #E6A23C;
+  background: var(--status-pending-bg);
+  color: var(--harvest-gold);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 11px;
@@ -1533,7 +1547,7 @@ async function batchDelete() {
     text-align: center;
     padding: 8px;
     font-size: 13px;
-    color: #909399;
+    color: var(--warm-gray-light);
     background: #f5f7fa;
     border-radius: 4px;
     margin-bottom: 8px;
@@ -1586,7 +1600,7 @@ async function batchDelete() {
     font-family: monospace;
     font-size: 14px;
     font-weight: 600;
-    color: #409eff;
+    color: var(--tomato-red);
   }
 
   .order-mobile-card .card-customer {
@@ -1603,14 +1617,14 @@ async function batchDelete() {
   .order-mobile-card .amount {
     font-size: 16px;
     font-weight: 600;
-    color: #409eff;
+    color: var(--tomato-red);
   }
 
   .order-mobile-card .card-footer {
     display: flex;
     justify-content: space-between;
     font-size: 12px;
-    color: #909399;
+    color: var(--warm-gray-light);
   }
 
   .order-mobile-card .card-actions {

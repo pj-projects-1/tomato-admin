@@ -5,7 +5,7 @@
       <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
-            <div class="stats-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="stats-icon stats-icon--sales">
               <el-icon :size="32"><ShoppingCart /></el-icon>
             </div>
             <div class="stats-info">
@@ -22,7 +22,7 @@
       <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
-            <div class="stats-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="stats-icon stats-icon--monthly">
               <el-icon :size="32"><Money /></el-icon>
             </div>
             <div class="stats-info">
@@ -39,7 +39,7 @@
       <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="hover" class="stats-card clickable" @click="$router.push('/stocks')">
           <div class="stats-content">
-            <div class="stats-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="stats-icon stats-icon--stock">
               <el-icon :size="32"><Box /></el-icon>
             </div>
             <div class="stats-info">
@@ -54,7 +54,7 @@
       <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="hover" class="stats-card pending-card">
           <div class="stats-content">
-            <div class="stats-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+            <div class="stats-icon stats-icon--pending">
               <el-icon :size="32"><Warning /></el-icon>
             </div>
             <div class="stats-info">
@@ -100,7 +100,7 @@
                   :percentage="getPercentage(currentPeriodStats.totalAmount, currentPeriodStats.totalAmount)"
                   :stroke-width="20"
                   :show-text="false"
-                  color="#667eea"
+                  color="var(--tomato-red)"
                 />
               </div>
               <div class="comparison-value">¥{{ formatMoney(currentPeriodStats.totalAmount) }}</div>
@@ -115,7 +115,7 @@
                   :percentage="getPercentage(currentPeriodStats.paidAmount, currentPeriodStats.totalAmount)"
                   :stroke-width="20"
                   :show-text="false"
-                  color="#67c23a"
+                  color="var(--soft-sage)"
                 />
               </div>
               <div class="comparison-value paid-value">¥{{ formatMoney(currentPeriodStats.paidAmount) }}</div>
@@ -130,7 +130,7 @@
                   :percentage="getPercentage(currentPeriodStats.unpaidAmount, currentPeriodStats.totalAmount)"
                   :stroke-width="20"
                   :show-text="false"
-                  color="#e6a23c"
+                  color="var(--harvest-gold)"
                 />
               </div>
               <div class="comparison-value unpaid-value">¥{{ formatMoney(currentPeriodStats.unpaidAmount) }}</div>
@@ -151,7 +151,7 @@
           <div class="order-stats">
             <div class="order-stat-item" v-for="item in orderStatusList" :key="item.status">
               <div class="stat-label">
-                <el-tag :type="item.type" size="small">{{ item.label }}</el-tag>
+                <el-tag :class="'status-tag--' + item.status" size="small">{{ item.label }}</el-tag>
               </div>
               <div class="stat-count">{{ getOrderCount(item.status) }}</div>
               <div class="stat-bar">
@@ -208,7 +208,7 @@
             </el-table-column>
             <el-table-column label="状态" prop="status" width="70">
               <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)" size="small">
+                <el-tag :class="'status-tag--' + row.status" size="small">
                   {{ getStatusText(row.status) }}
                 </el-tag>
               </template>
@@ -224,7 +224,7 @@
             <div v-for="row in recentOrders" :key="row.id" class="order-mini-card">
               <div class="mini-card-row">
                 <span class="customer">{{ row.customer?.name || '-' }}</span>
-                <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusText(row.status) }}</el-tag>
+                <el-tag :class="'status-tag--' + row.status" size="small">{{ getStatusText(row.status) }}</el-tag>
               </div>
               <div class="mini-card-row">
                 <span class="order-num-mobile">{{ row.order_number || row.id.slice(0, 8) }}</span>
@@ -327,12 +327,12 @@ const currentPeriodStats = computed<SalesStats>(() => {
   return periodStats.value[periodType.value]
 })
 
-const orderStatusList: { status: OrderStatus; label: string; type: string; color: string }[] = [
-  { status: 'pending', label: '未确认', type: 'warning', color: '#e6a23c' },
-  { status: 'confirmed', label: '未完成', type: 'primary', color: '#409eff' },
-  { status: 'delivering', label: '配送中', type: 'success', color: '#67c23a' },
-  { status: 'completed', label: '已完成', type: 'success', color: '#67c23a' },
-  { status: 'cancelled', label: '已取消', type: 'danger', color: '#f56c6c' },
+const orderStatusList: { status: OrderStatus; label: string; color: string }[] = [
+  { status: 'pending', label: '未确认', color: 'var(--harvest-gold)' },
+  { status: 'confirmed', label: '未完成', color: 'var(--tomato-red)' },
+  { status: 'delivering', label: '配送中', color: 'var(--soft-sage)' },
+  { status: 'completed', label: '已完成', color: 'var(--soft-sage-dark)' },
+  { status: 'cancelled', label: '已取消', color: 'var(--status-cancelled)' },
 ]
 
 onMounted(() => {
@@ -370,17 +370,6 @@ function getOrderPercentage(status: OrderStatus) {
   const total = orderStats.value.total
   if (total === 0) return 0
   return Math.round((orderStats.value[status] / total) * 100)
-}
-
-function getStatusType(status: OrderStatus) {
-  const map: Record<OrderStatus, string> = {
-    pending: 'warning',
-    confirmed: 'primary',
-    delivering: 'success',
-    completed: 'success',
-    cancelled: 'danger',
-  }
-  return map[status] || 'info'
 }
 
 function getStatusText(status: OrderStatus) {
@@ -437,7 +426,7 @@ function getStockTypeText(type: string) {
 }
 
 .link-text {
-  color: #409eff;
+  color: var(--tomato-red);
 }
 
 .stats-content {
@@ -456,6 +445,22 @@ function getStockTypeText(type: string) {
   flex-shrink: 0;
 }
 
+.stats-icon--sales {
+  background: linear-gradient(135deg, var(--tomato-red) 0%, var(--harvest-gold) 100%);
+}
+
+.stats-icon--monthly {
+  background: linear-gradient(135deg, var(--tomato-red-light) 0%, var(--tomato-red) 100%);
+}
+
+.stats-icon--stock {
+  background: linear-gradient(135deg, var(--soft-sage) 0%, var(--soft-sage-light) 100%);
+}
+
+.stats-icon--pending {
+  background: linear-gradient(135deg, var(--harvest-gold) 0%, var(--tomato-red-light) 100%);
+}
+
 .stats-info {
   margin-left: 18px;
   flex: 1;
@@ -463,24 +468,24 @@ function getStockTypeText(type: string) {
 
 .stats-label {
   font-size: 15px;
-  color: #909399;
+  color: var(--warm-gray-light);
   margin-bottom: 6px;
 }
 
 .stats-value {
   font-size: 28px;
   font-weight: 600;
-  color: #303133;
+  color: var(--earth-brown);
 }
 
 .stats-sub {
   font-size: 13px;
-  color: #909399;
+  color: var(--warm-gray-light);
   margin-top: 6px;
 }
 
 .stats-sub .paid {
-  color: #67c23a;
+  color: var(--soft-sage);
 }
 
 .pending-card .stats-value {
@@ -512,13 +517,13 @@ function getStockTypeText(type: string) {
 }
 
 .pending-item.clickable .pending-text {
-  color: #409eff;
+  color: var(--tomato-red);
 }
 
 .pending-text {
   font-size: 16px;
   font-weight: 500;
-  color: #303133;
+  color: var(--earth-brown);
 }
 
 .chart-card {
@@ -545,7 +550,7 @@ function getStockTypeText(type: string) {
 
 .comparison-label {
   font-size: 14px;
-  color: #606266;
+  color: var(--warm-gray);
   margin-bottom: 8px;
   display: flex;
   align-items: center;
@@ -553,11 +558,11 @@ function getStockTypeText(type: string) {
 }
 
 .paid-label {
-  color: #67c23a;
+  color: var(--soft-sage);
 }
 
 .unpaid-label {
-  color: #e6a23c;
+  color: var(--harvest-gold);
 }
 
 .comparison-bar {
@@ -567,15 +572,15 @@ function getStockTypeText(type: string) {
 .comparison-value {
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: var(--earth-brown);
 }
 
 .paid-value {
-  color: #67c23a;
+  color: var(--soft-sage);
 }
 
 .unpaid-value {
-  color: #e6a23c;
+  color: var(--harvest-gold);
 }
 
 .collection-rate {
@@ -584,15 +589,15 @@ function getStockTypeText(type: string) {
   align-items: center;
   padding-top: 16px;
   margin-top: 16px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-color);
   font-size: 14px;
-  color: #606266;
+  color: var(--warm-gray);
 }
 
 .rate-value {
   font-size: 24px;
   font-weight: 600;
-  color: #67c23a;
+  color: var(--soft-sage);
 }
 
 .order-stats {
@@ -617,14 +622,14 @@ function getStockTypeText(type: string) {
   width: 40px;
   text-align: right;
   font-weight: 600;
-  color: #303133;
+  color: var(--earth-brown);
   margin-right: 12px;
 }
 
 .stat-bar {
   flex: 1;
   height: 8px;
-  background: #f0f2f5;
+  background: var(--border-color-light);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -636,28 +641,28 @@ function getStockTypeText(type: string) {
 }
 
 .unpaid-text {
-  color: #e6a23c;
+  color: var(--harvest-gold);
 }
 
 .order-num {
   font-family: monospace;
   font-size: 13px;
-  color: #606266;
+  color: var(--warm-gray);
 }
 
 .stock-in {
-  color: #67c23a;
+  color: var(--soft-sage);
   font-weight: 600;
 }
 
 .stock-out {
-  color: #f56c6c;
+  color: var(--status-cancelled);
   font-weight: 600;
 }
 
 :deep(.el-card__header) {
   padding: 12px 16px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border-color);
 }
 
 /* Mobile card list - hidden on desktop */
@@ -765,7 +770,7 @@ function getStockTypeText(type: string) {
     flex-direction: column;
     gap: 4px;
     padding: 8px 0;
-    border-bottom: 1px solid #ebeef5;
+    border-bottom: 1px solid var(--border-color);
   }
 
   .order-mini-card:last-child,
@@ -786,23 +791,23 @@ function getStockTypeText(type: string) {
 
   .order-mini-card .amount {
     font-weight: 600;
-    color: #409eff;
+    color: var(--tomato-red);
   }
 
   .order-mini-card .order-num-mobile {
     font-family: monospace;
     font-size: 12px;
-    color: #909399;
+    color: var(--warm-gray-light);
   }
 
   .order-mini-card .boxes {
     font-size: 13px;
-    color: #606266;
+    color: var(--warm-gray);
   }
 
   .order-mini-card .date {
     font-size: 12px;
-    color: #909399;
+    color: var(--warm-gray-light);
   }
 
   .stock-mini-card .quantity {
@@ -811,13 +816,13 @@ function getStockTypeText(type: string) {
 
   .stock-mini-card .balance {
     font-size: 12px;
-    color: #909399;
+    color: var(--warm-gray-light);
   }
 
   .mini-card-row .time,
   .mini-card-row .note {
     font-size: 12px;
-    color: #909399;
+    color: var(--warm-gray-light);
   }
 
   .pending-value {

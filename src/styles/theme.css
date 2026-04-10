@@ -1,0 +1,196 @@
+/* ============================================
+   TOMATO ADMIN — Unified Theme
+   Organic tomato business palette
+   ============================================ */
+
+:root {
+  /* Brand colors */
+  --tomato-red: #C84B31;
+  --tomato-red-light: #EC6B4F;
+  --tomato-red-dark: #A33D28;
+  --harvest-gold: #D4A574;
+  --harvest-gold-light: #E8C9A8;
+  --earth-brown: #5C4033;
+  --earth-brown-light: #7A6258;
+  --cream: #FDF6E3;
+  --soft-sage: #7D9D6C;
+  --soft-sage-light: #B8C9A8;
+  --soft-sage-dark: #5A7D4A;
+  --warm-gray: #6B5B50;
+  --warm-gray-light: #A89888;
+
+  /* Semantic status colors — text */
+  --status-pending: #D4A574;
+  --status-confirmed: #C84B31;
+  --status-assigned: #6B5B50;
+  --status-delivering: #7D9D6C;
+  --status-delivered: #5A7D4A;
+  --status-completed: #5A7D4A;
+  --status-cancelled: #CF4B3F;
+  --status-exception: #CF4B3F;
+
+  /* Semantic status colors — background */
+  --status-pending-bg: #FDF6EC;
+  --status-confirmed-bg: #FDF0EC;
+  --status-assigned-bg: #F4F4F5;
+  --status-delivering-bg: #E8FAF8;
+  --status-delivered-bg: #EEF5E9;
+  --status-completed-bg: #EEF5E9;
+  --status-cancelled-bg: #FEF0F0;
+  --status-exception-bg: #FEF0F0;
+
+  /* Text hierarchy */
+  --text-primary: #5C4033;
+  --text-regular: #6B5B50;
+  --text-secondary: #A89888;
+  --text-placeholder: #C4B8AB;
+
+  /* Borders & dividers */
+  --border-color: #EBE3D9;
+  --border-color-light: #F0EBE3;
+
+  /* Backgrounds */
+  --bg-page: #F9F5EF;
+  --bg-card: #FFFFFF;
+  --bg-card-header: #FAF7F2;
+  --bg-hover: #FDF6E3;
+
+  /* Element Plus overrides */
+  --el-color-primary: #C84B31;
+  --el-color-primary-light-3: #EC6B4F;
+  --el-color-primary-light-5: #F09E8C;
+  --el-color-primary-light-7: #F7C5BA;
+  --el-color-primary-light-9: #FDF0EC;
+  --el-color-primary-dark-2: #A33D28;
+
+  --el-color-success: #7D9D6C;
+  --el-color-success-light-3: #9DB88E;
+  --el-color-success-light-5: #B8C9A8;
+  --el-color-success-light-7: #D4DFC9;
+  --el-color-success-light-9: #EEF5E9;
+  --el-color-success-dark-2: #5A7D4A;
+
+  --el-color-warning: #D4A574;
+  --el-color-warning-light-3: #E0BC95;
+  --el-color-warning-light-5: #E8C9A8;
+  --el-color-warning-light-7: #F0DCC5;
+  --el-color-warning-light-9: #FDF6EC;
+  --el-color-warning-dark-2: #B8884E;
+
+  --el-color-danger: #CF4B3F;
+  --el-color-danger-light-3: #DB7A70;
+  --el-color-danger-light-5: #E8A19A;
+  --el-color-danger-light-7: #F2C5C0;
+  --el-color-danger-light-9: #FEF0F0;
+  --el-color-danger-dark-2: #A93D33;
+
+  --el-color-info: #6B5B50;
+  --el-color-info-light-3: #8E8078;
+  --el-color-info-light-5: #A89888;
+  --el-color-info-light-7: #C8BBB2;
+  --el-color-info-light-9: #F4F4F5;
+  --el-color-info-dark-2: #54483F;
+
+  --el-table-header-bg-color: #FAF7F2;
+  --el-dialog-border-radius: 8px;
+  --el-border-color: #EBE3D9;
+  --el-border-color-light: #F0EBE3;
+  --el-border-color-lighter: #F5F1EB;
+
+  --el-fill-color-blank: #FFFFFF;
+  --el-fill-color: #F9F5EF;
+  --el-fill-color-light: #FAF7F2;
+  --el-fill-color-lighter: #FDF6E3;
+  --el-fill-color-extra-light: #FDF8F0;
+
+  --el-text-color-primary: #5C4033;
+  --el-text-color-regular: #6B5B50;
+  --el-text-color-secondary: #A89888;
+  --el-text-color-placeholder: #C4B8AB;
+
+  --el-bg-color: #F9F5EF;
+  --el-bg-color-page: #F9F5EF;
+  --el-bg-color-overlay: #FFFFFF;
+}
+
+/* ============================================
+   Status Tag Utility Classes
+   Use: <el-tag class="status-tag--pending" size="small">
+   ============================================ */
+
+.status-tag--pending,
+.status-tag--pending_pack,
+.status-tag--pending_label,
+.status-tag--pending_pack {
+  color: var(--status-pending);
+  background-color: var(--status-pending-bg);
+  border: none;
+}
+
+.status-tag--confirmed,
+.status-tag--pending_dropoff {
+  color: var(--status-confirmed);
+  background-color: var(--status-confirmed-bg);
+  border: none;
+}
+
+.status-tag--assigned {
+  color: var(--status-assigned);
+  background-color: var(--status-assigned-bg);
+  border: none;
+}
+
+.status-tag--delivering,
+.status-tag--in_transit {
+  color: var(--status-delivering);
+  background-color: var(--status-delivering-bg);
+  border: none;
+}
+
+.status-tag--delivered,
+.status-tag--completed,
+.status-tag--picked_up {
+  color: var(--status-delivered);
+  background-color: var(--status-delivered-bg);
+  border: none;
+}
+
+.status-tag--cancelled,
+.status-tag--exception {
+  color: var(--status-cancelled);
+  background-color: var(--status-cancelled-bg);
+  border: none;
+}
+
+/* Task status tags */
+.status-tag--planning {
+  color: var(--harvest-gold);
+  background-color: var(--status-pending-bg);
+  border: none;
+}
+
+.status-tag--in_progress {
+  color: var(--soft-sage);
+  background-color: var(--status-delivering-bg);
+  border: none;
+}
+
+.status-tag--completed_task {
+  color: var(--soft-sage-dark);
+  background-color: var(--status-completed-bg);
+  border: none;
+}
+
+.status-tag--cancelled_task {
+  color: var(--status-cancelled);
+  background-color: var(--status-cancelled-bg);
+  border: none;
+}
+
+/* ============================================
+   General Tag Overrides
+   ============================================ */
+
+.el-tag {
+  border-radius: 4px;
+}

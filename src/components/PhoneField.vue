@@ -94,7 +94,7 @@ async function copyPhone() {
 }
 
 .copy-icon.copy-success {
-  color: #67c23a;
+  color: var(--soft-sage);
   opacity: 1;
 }
 
