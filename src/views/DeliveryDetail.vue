@@ -13,8 +13,9 @@
       </div>
     </div>
 
-    <!-- Primary Actions - Mobile friendly -->
-    <div class="action-bar" v-if="task">
+    <!-- Primary Actions -->
+    <!-- Desktop: with groups and dropdown -->
+    <div class="action-bar action-bar--desktop" v-if="task">
       <div class="action-group">
         <el-button @click="handleExportTask" :disabled="sortedDeliveries.length === 0">
           <el-icon><Download /></el-icon>
@@ -38,7 +39,7 @@
           <el-icon><Edit /></el-icon>
           <span class="btn-text">调整路线</span>
         </el-button>
-        <el-button type="success" @click="startTask">
+        <el-button class="btn-start-delivery" @click="startTask">
           <el-icon><VideoPlay /></el-icon>
           <span class="btn-text">开始配送</span>
         </el-button>
@@ -48,11 +49,51 @@
           <el-icon><RefreshLeft /></el-icon>
           <span class="btn-text">撤销配送</span>
         </el-button>
-        <el-button type="primary" @click="completeTask">
+        <el-button class="btn-complete-delivery" @click="completeTask">
           <el-icon><Check /></el-icon>
           <span class="btn-text">完成配送</span>
         </el-button>
       </div>
+    </div>
+
+    <!-- Mobile: flat grid of plain buttons — no dropdowns, equal width -->
+    <div class="action-bar action-bar--mobile" v-if="task">
+      <el-button @click="handleExportTask" :disabled="sortedDeliveries.length === 0">
+        <el-icon><Download /></el-icon>
+        <span class="btn-text">导出清单</span>
+      </el-button>
+      <el-dropdown split-button type="primary" trigger="click" :disabled="!hasValidLocations" @click="startNavigation">
+        <el-icon><Navigation /></el-icon>
+        <span class="btn-text">导航</span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item @click="handleCopyNavLink">
+              <el-icon><CopyDocument /></el-icon>
+              复制导航链接
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <template v-if="task.status === 'planning'">
+        <el-button @click="showAdjustRouteDialog">
+          <el-icon><Edit /></el-icon>
+          <span class="btn-text">调整路线</span>
+        </el-button>
+        <el-button class="btn-start-delivery" @click="startTask">
+          <el-icon><VideoPlay /></el-icon>
+          <span class="btn-text">开始配送</span>
+        </el-button>
+      </template>
+      <template v-if="task.status === 'in_progress'">
+        <el-button class="btn-complete-delivery" @click="completeTask">
+          <el-icon><Check /></el-icon>
+          <span class="btn-text">完成配送</span>
+        </el-button>
+        <el-button type="warning" @click="cancelTask">
+          <el-icon><RefreshLeft /></el-icon>
+          <span class="btn-text">撤销配送</span>
+        </el-button>
+      </template>
     </div>
 
     <el-row :gutter="20" v-if="task">
@@ -703,6 +744,14 @@ async function handleCopyNavLink() {
  * On mobile: tries app first, falls back to web
  * On desktop: opens web version
  */
+function handleMobileNavCommand(command: string) {
+  if (command === 'navigate') {
+    startNavigation()
+  } else if (command === 'copy') {
+    handleCopyNavLink()
+  }
+}
+
 function startNavigation() {
   if (!task.value || !hasValidLocations.value) {
     ElMessage.warning('配送点缺少坐标信息')
@@ -876,6 +925,14 @@ ${lines.join('\n\n')}
   flex-wrap: wrap;
 }
 
+/* Mobile action bar: hidden on desktop, shown on mobile */
+.action-bar--mobile {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
 .action-group {
   display: flex;
   gap: 8px;
@@ -884,6 +941,33 @@ ${lines.join('\n\n')}
 
 .btn-text {
   margin-left: 4px;
+}
+
+/* Teal for 开始配送 */
+/* Teal for 开始配送 */
+.btn-start-delivery {
+  --el-button-bg-color: #CCFBF1;
+  --el-button-text-color: #0F766E;
+  --el-button-border-color: #2DD4BF;
+  --el-button-hover-bg-color: #B2F5EA;
+  --el-button-hover-text-color: #0D6B64;
+  --el-button-hover-border-color: #14B8A6;
+  --el-button-active-bg-color: #99F6E4;
+  --el-button-active-text-color: #0D6B64;
+  --el-button-active-border-color: #14B8A6;
+}
+
+/* Green for 完成配送 */
+.btn-complete-delivery {
+  --el-button-bg-color: #EEF5E9;
+  --el-button-text-color: #3D6B2E;
+  --el-button-border-color: #5A7D4A;
+  --el-button-hover-bg-color: #E0EDD8;
+  --el-button-hover-text-color: #305A23;
+  --el-button-hover-border-color: #4A6D3A;
+  --el-button-active-bg-color: #D5E8CB;
+  --el-button-active-text-color: #305A23;
+  --el-button-active-border-color: #4A6D3A;
 }
 
 /* Route summary stats */
@@ -1123,28 +1207,52 @@ ${lines.join('\n\n')}
     font-size: 16px;
   }
 
-  .action-bar {
-    flex-direction: column;
-    gap: 8px;
+  /* Show mobile action bar, hide desktop */
+  .action-bar--desktop {
+    display: none !important;
   }
 
-  .action-group {
-    width: 100%;
-    justify-content: flex-start;
+  .action-bar--mobile {
+    display: grid !important;
   }
 
-  .action-group .el-button {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .action-group .el-button {
+  .action-bar--mobile > .el-button {
     font-size: 13px;
-    padding: 8px 12px;
+    padding: 8px 6px;
+    width: 100%;
+    justify-content: center;
   }
 
-  .action-group .el-button .el-icon {
-    margin-right: 4px;
+  /* Dropdown wrapper fills grid cell */
+  .action-bar--mobile > :deep(.el-dropdown) {
+    width: 100%;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .action-bar--mobile > :deep(.el-dropdown .el-button-group) {
+    display: flex;
+    width: 100%;
+    flex: 1;
+    margin: 0 !important;
+  }
+
+  .action-bar--mobile > :deep(.el-dropdown .el-button-group > .el-button:first-child) {
+    flex: 85;
+    min-width: 0;
+    font-size: 13px;
+    padding: 8px 6px;
+    justify-content: center;
+  }
+
+  .action-bar--mobile > :deep(.el-dropdown .el-button-group > .el-button:last-child) {
+    flex: 15;
+    min-width: 0;
+    padding: 8px 4px;
+  }
+
+  .action-bar--mobile .el-button .el-icon {
+    margin-right: 2px;
   }
 
   /* Route stats - 2x2 grid on mobile */
