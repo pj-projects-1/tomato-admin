@@ -560,6 +560,10 @@ export async function updatePickupStatus(
       updates.picked_up_at = new Date().toISOString()
       updates.status = 'delivered'
       updates.delivered_at = new Date().toISOString()
+    } else if (status === 'pending') {
+      updates.picked_up_at = null
+      updates.status = 'pending'
+      updates.delivered_at = null
     }
 
     const { error } = await supabase

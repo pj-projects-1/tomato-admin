@@ -72,10 +72,10 @@
           <el-col :xs="24" :lg="12">
             <el-card shadow="never">
               <template #header>
-                <span>配送订单</span>
-                <el-tag type="warning" style="margin-left: 8px;">
-                  {{ filteredSelfDeliveries.length }} 个
-                </el-tag>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                  <span>配送订单</span>
+                  <span class="pickup-count-tag">{{ filteredSelfDeliveries.length }}</span>
+                </div>
               </template>
               <!-- Desktop: Table view -->
               <el-table
@@ -178,7 +178,7 @@
                   <template #title>
                     <div class="collapse-title">
                       <span>进行中的任务</span>
-                      <el-tag type="warning" size="small">{{ activeTasks.length }}</el-tag>
+                      <span class="pickup-count-tag">{{ activeTasks.length }}</span>
                     </div>
                   </template>
 
@@ -295,7 +295,7 @@
                   <template #title>
                     <div class="collapse-title">
                       <span>已完成的任务</span>
-                      <el-tag type="info" size="small">{{ completedTasks.length }}</el-tag>
+                      <span class="pickup-count-tag pickup-count-tag--done">{{ completedTasks.length }}</span>
                     </div>
                   </template>
 
@@ -384,7 +384,6 @@
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span>快递订单</span>
-              <el-tag type="warning">{{ expressDeliveries.length }} 个</el-tag>
             </div>
           </template>
 
@@ -434,7 +433,13 @@
           >
             <el-table-column prop="order" label="客户" min-width="100">
               <template #default="{ row }">
-                <span>{{ row.order?.customer?.name || '-' }}</span>
+                <span class="col-customer">{{ row.order?.customer?.name || '-' }}</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column prop="order" label="订单号" min-width="130">
+              <template #default="{ row }">
+                <span class="col-order-number">{{ row.order?.order_number || '-' }}</span>
               </template>
             </el-table-column>
 
@@ -476,6 +481,12 @@
               </template>
             </el-table-column>
 
+            <el-table-column prop="quantity" label="数量" width="70" align="center">
+              <template #default="{ row }">
+                <span class="col-quantity">{{ row.quantity }}箱</span>
+              </template>
+            </el-table-column>
+
             <el-table-column prop="express_company" label="快递公司" width="100">
               <template #default="{ row }">
                 <span>{{ getCompanyName(row.express_company) }}</span>
@@ -486,14 +497,12 @@
               <template #default="{ row }">
                 <div class="tracking-numbers-cell">
                   <template v-if="getTrackingNumbers(row).length > 0">
-                    <!-- First tracking number always visible -->
                     <a
                       :href="getTrackingUrlFromItem(getTrackingNumbers(row)[0]!, row.express_company)"
                       target="_blank"
                       rel="noopener noreferrer"
                       class="tracking-link"
                     >{{ getTrackingNumbers(row)[0]!.number }}</a>
-                    <!-- Additional numbers (collapsible) -->
                     <template v-if="getTrackingNumbers(row).length > 1">
                       <a
                         v-for="(tn, idx) in getTrackingNumbers(row).slice(1)"
@@ -528,11 +537,9 @@
               </template>
             </el-table-column>
 
-            <el-table-column prop="quantity" label="数量" width="60" align="center" />
-
             <el-table-column prop="created_at" label="创建时间" width="100">
               <template #default="{ row }">
-                {{ formatDate(row.created_at) }}
+                <span class="col-time">{{ formatDate(row.created_at) }}</span>
               </template>
             </el-table-column>
 
@@ -560,7 +567,7 @@
               :class="{ highlighted: highlightDeliveryId === row.id }"
             >
               <div class="card-header-row">
-                <span class="customer-name">{{ row.order?.customer?.name || '-' }}</span>
+                <span class="card-customer">{{ row.order?.customer?.name || '-' }}</span>
                 <el-dropdown trigger="click" @command="(cmd: string) => changeExpressStatus(row.id, cmd as ExpressStatus)">
                   <span :class="'status-pill status-pill--' + row.express_status">
                     {{ getExpressStatusText(row.express_status) }}
@@ -595,37 +602,41 @@
                   </template>
                 </el-dropdown>
               </div>
-              <div class="card-info">
+              <div class="card-key-info">
+                <span class="card-order-number">{{ row.order?.order_number || '-' }}</span>
+                <span class="card-quantity">{{ row.quantity }}箱</span>
+              </div>
+              <div class="card-detail">
                 <span v-if="row.express_company">{{ getCompanyName(row.express_company) }}</span>
-                <template v-if="getTrackingNumbers(row).length > 0">
+              </div>
+              <div v-if="getTrackingNumbers(row).length > 0" class="card-tracking-list">
+                <a
+                  :href="getTrackingUrlFromItem(getTrackingNumbers(row)[0]!, row.express_company)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="tracking-link card-tracking-num"
+                >{{ getTrackingNumbers(row)[0]!.number }}</a>
+                <template v-if="getTrackingNumbers(row).length > 1">
                   <a
-                    :href="getTrackingUrlFromItem(getTrackingNumbers(row)[0]!, row.express_company)"
+                    v-for="(tn, idx) in getTrackingNumbers(row).slice(1)"
+                    v-show="isTrackingExpanded(row.id)"
+                    :key="idx"
+                    :href="getTrackingUrlFromItem(tn, row.express_company)"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="tracking-link tracking-num"
-                  >{{ getTrackingNumbers(row)[0]!.number }}</a>
-                  <template v-if="getTrackingNumbers(row).length > 1">
-                    <a
-                      v-for="(tn, idx) in getTrackingNumbers(row).slice(1)"
-                      v-show="isTrackingExpanded(row.id)"
-                      :key="idx"
-                      :href="getTrackingUrlFromItem(tn, row.express_company)"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="tracking-link tracking-num"
-                    >{{ tn.number }}</a>
-                    <span
-                      class="tracking-toggle-mobile"
-                      @click.stop="toggleTrackingExpanded(row.id)"
-                    >
-                      {{ isTrackingExpanded(row.id) ? '收起' : `+${getTrackingNumbers(row).length - 1}` }}
-                    </span>
-                  </template>
+                    class="tracking-link card-tracking-num"
+                  >{{ tn.number }}</a>
+                  <span
+                    class="tracking-toggle-mobile"
+                    @click.stop="toggleTrackingExpanded(row.id)"
+                  >
+                    {{ isTrackingExpanded(row.id) ? '收起' : `+${getTrackingNumbers(row).length - 1}个运单号` }}
+                  </span>
                 </template>
               </div>
-              <div class="card-address">{{ row.address }}</div>
+              <div class="card-detail card-address">{{ row.address }}</div>
               <div class="card-footer">
-                <span>{{ row.quantity }}箱 / {{ formatDate(row.created_at) }}</span>
+                <span class="card-time">{{ formatDate(row.created_at) }}</span>
                 <div class="card-actions">
                   <el-button
                     size="small"
@@ -646,11 +657,19 @@
       <el-tab-pane label="自提管理" name="pickup">
         <el-card shadow="never">
           <template #header>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
               <span>自提订单</span>
-              <div>
-                <el-tag type="warning" style="margin-right: 8px;">待自提 {{ pendingPickups.length }} 个</el-tag>
-                <el-tag type="success">已自提 {{ pickedUpDeliveries.length }} 个</el-tag>
+              <div style="display: flex; gap: 8px;">
+                <span
+                  class="pickup-count-tag"
+                  :class="{ active: pickupFilter === 'pending' }"
+                  @click="pickupFilter = pickupFilter === 'pending' ? '' : 'pending'"
+                >待自提 {{ pendingPickups.length }}</span>
+                <span
+                  class="pickup-count-tag pickup-count-tag--done"
+                  :class="{ active: pickupFilter === 'picked_up' }"
+                  @click="pickupFilter = pickupFilter === 'picked_up' ? '' : 'picked_up'"
+                >已自提 {{ pickedUpDeliveries.length }}</span>
               </div>
             </div>
           </template>
@@ -667,6 +686,12 @@
               <el-option label="已自提" value="picked_up" />
             </el-select>
 
+            <el-radio-group v-model="pickupDateFilter" size="default" style="margin-right: 12px;">
+              <el-radio-button value="today">今天</el-radio-button>
+              <el-radio-button value="week">本周</el-radio-button>
+              <el-radio-button value="">全部</el-radio-button>
+            </el-radio-group>
+
             <el-button @click="refreshPickupList" :loading="pickupLoading">
               <el-icon><Refresh /></el-icon>
               刷新
@@ -680,26 +705,46 @@
             class="desktop-table"
             style="width: 100%; margin-top: 16px;"
           >
-            <el-table-column prop="order" label="客户" min-width="100">
+                        <el-table-column prop="order" label="客户" min-width="100">
               <template #default="{ row }">
-                <span class="pickup-customer">{{ row.order?.customer?.name || '-' }}</span>
+                <span class="col-customer">{{ row.order?.customer?.name || '-' }}</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column prop="order" label="订单号" min-width="130">
+              <template #default="{ row }">
+                <span class="col-order-number">{{ row.order?.order_number || '-' }}</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column prop="pickup_status" label="状态" width="100">
+              <template #default="{ row }">
+                <el-dropdown trigger="click" @command="(cmd: string) => changePickupStatus(row.id, cmd as PickupStatus)">
+                  <span :class="'status-pill status-pill--' + row.pickup_status">
+                    {{ getPickupStatusText(row.pickup_status) }}
+                    <el-icon :size="12"><ArrowDown /></el-icon>
+                  </span>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="pending" :disabled="row.pickup_status === 'pending'" :class="{ 'is-active': row.pickup_status === 'pending' }">
+                        <span v-if="row.pickup_status === 'pending'" style="font-weight: 600;">✓ </span>
+                        <span v-else style="margin-left: 14px;" />
+                        待自提
+                      </el-dropdown-item>
+                      <el-dropdown-item command="picked_up" :disabled="row.pickup_status === 'picked_up'" :class="{ 'is-active': row.pickup_status === 'picked_up' }">
+                        <span v-if="row.pickup_status === 'picked_up'" style="font-weight: 600;">✓ </span>
+                        <span v-else style="margin-left: 14px;" />
+                        已自提
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </template>
             </el-table-column>
 
             <el-table-column prop="quantity" label="数量" width="70" align="center">
               <template #default="{ row }">
-                <span class="pickup-quantity">{{ row.quantity }}箱</span>
-              </template>
-            </el-table-column>
-
-            <el-table-column prop="pickup_status" label="状态" width="85">
-              <template #default="{ row }">
-                <el-tag
-                  size="small"
-                  :class="'status-tag--' + row.pickup_status"
-                >
-                  {{ getPickupStatusText(row.pickup_status) }}
-                </el-tag>
+                <span class="col-quantity">{{ row.quantity }}箱</span>
               </template>
             </el-table-column>
 
@@ -709,42 +754,36 @@
               </template>
             </el-table-column>
 
-            <el-table-column prop="created_at" label="下单时间" width="110">
+            <el-table-column prop="created_at" label="创建时间" width="100">
               <template #default="{ row }">
-                <span class="pickup-time">{{ formatDate(row.created_at) }}</span>
+                <span class="col-time">{{ formatDate(row.created_at) }}</span>
               </template>
             </el-table-column>
 
-            <el-table-column prop="picked_up_at" label="自提时间" width="110">
+            <el-table-column prop="picked_up_at" label="自提时间" width="100">
               <template #default="{ row }">
-                <span class="pickup-time">{{ row.picked_up_at ? formatDate(row.picked_up_at) : '-' }}</span>
+                <span class="col-time">{{ row.picked_up_at ? formatDate(row.picked_up_at) : '-' }}</span>
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="180">
+            <el-table-column label="操作" width="120">
               <template #default="{ row }">
                 <div class="pickup-actions">
                   <el-button
                     text
                     type="primary"
+                    size="small"
                     @click="viewPickupOrder(row)"
                   >
-                    查看订单
+                    订单
                   </el-button>
                   <el-button
                     text
                     type="info"
+                    size="small"
                     @click="callCustomer(row.order?.customer?.phone)"
                   >
-                    联系客户
-                  </el-button>
-                  <el-button
-                    v-if="row.pickup_status === 'pending'"
-                    text
-                    type="success"
-                    @click="handlePickupConfirm(row)"
-                  >
-                    确认自提
+                    联系
                   </el-button>
                 </div>
               </template>
@@ -759,40 +798,53 @@
               class="pickup-mobile-card"
             >
               <div class="card-header-row">
-                <span class="customer-name">{{ row.order?.customer?.name || '-' }}</span>
-                <el-tag
-                  size="small"
-                  :class="'status-tag--' + row.pickup_status"
-                >
-                  {{ getPickupStatusText(row.pickup_status) }}
-                </el-tag>
+                <span class="card-customer">{{ row.order?.customer?.name || '-' }}</span>
+                <el-dropdown trigger="click" @command="(cmd: string) => changePickupStatus(row.id, cmd as PickupStatus)">
+                  <span :class="'status-pill status-pill--' + row.pickup_status">
+                    {{ getPickupStatusText(row.pickup_status) }}
+                    <el-icon :size="12"><ArrowDown /></el-icon>
+                  </span>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="pending" :disabled="row.pickup_status === 'pending'" :class="{ 'is-active': row.pickup_status === 'pending' }">
+                        <span v-if="row.pickup_status === 'pending'" style="font-weight: 600;">✓ </span>
+                        <span v-else style="margin-left: 14px;" />
+                        待自提
+                      </el-dropdown-item>
+                      <el-dropdown-item command="picked_up" :disabled="row.pickup_status === 'picked_up'" :class="{ 'is-active': row.pickup_status === 'picked_up' }">
+                        <span v-if="row.pickup_status === 'picked_up'" style="font-weight: 600;">✓ </span>
+                        <span v-else style="margin-left: 14px;" />
+                        已自提
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </div>
-              <div class="card-info-row">
-                <span class="quantity-badge">{{ row.quantity }}箱</span>
+              <div class="card-key-info">
+                <span class="card-order-number">{{ row.order?.order_number || '-' }}</span>
+                <span class="card-quantity">{{ row.quantity }}箱</span>
+              </div>
+              <div class="card-detail">
                 <PhoneField :phone="row.order?.customer?.phone" />
-                <span class="time-text">{{ formatDate(row.created_at) }}</span>
+                <span class="card-time">{{ formatDate(row.created_at) }}</span>
               </div>
-              <div class="card-actions-row">
-                <el-button
-                  size="small"
-                  @click="viewPickupOrder(row)"
-                >
-                  查看订单
-                </el-button>
-                <el-button
-                  size="small"
-                  @click="callCustomer(row.order?.customer?.phone)"
-                >
-                  联系客户
-                </el-button>
-                <el-button
-                  v-if="row.pickup_status === 'pending'"
-                  size="small"
-                  type="success"
-                  @click="handlePickupConfirm(row)"
-                >
-                  确认自提
-                </el-button>
+              <div class="card-footer">
+                <span v-if="row.picked_up_at" class="card-time">已提: {{ formatDate(row.picked_up_at) }}</span>
+                <span v-else />
+                <div class="card-actions">
+                  <el-button
+                    size="small"
+                    @click="viewPickupOrder(row)"
+                  >
+                    订单
+                  </el-button>
+                  <el-button
+                    size="small"
+                    @click="callCustomer(row.order?.customer?.phone)"
+                  >
+                    联系
+                  </el-button>
+                </div>
               </div>
             </div>
             <el-empty v-if="filteredPickupDeliveries.length === 0" description="暂无自提订单" />
@@ -1130,6 +1182,7 @@ const trackingForm = reactive({
 // Pickup state
 const pickupDeliveries = ref<any[]>([])
 const pickupFilter = ref<'pending' | 'picked_up' | ''>('')
+const pickupDateFilter = ref<'today' | 'week' | ''>('')
 const pickupLoading = ref(false)
 
 // Highlight delivery from URL
@@ -1311,8 +1364,19 @@ const pickedUpDeliveries = computed(() =>
 )
 
 const filteredPickupDeliveries = computed(() => {
-  if (!pickupFilter.value) return pickupDeliveries.value
-  return pickupDeliveries.value.filter(d => d.pickup_status === pickupFilter.value)
+  let result = pickupDeliveries.value
+  if (pickupFilter.value) {
+    result = result.filter(d => d.pickup_status === pickupFilter.value)
+  }
+  if (pickupDateFilter.value) {
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const weekStart = new Date(todayStart)
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1) // Monday
+    const cutoff = pickupDateFilter.value === 'today' ? todayStart : weekStart
+    result = result.filter(d => new Date(d.created_at) >= cutoff)
+  }
+  return result
 })
 
 // Handle URL query parameters
@@ -2098,6 +2162,31 @@ async function handlePickupConfirm(delivery: any) {
   }
 }
 
+async function changePickupStatus(deliveryId: string, newStatus: PickupStatus) {
+  const delivery = pickupDeliveries.value.find((d: any) => d.id === deliveryId)
+  if (!delivery || delivery.pickup_status === newStatus) return
+
+  // Reverting from picked_up to pending needs confirmation
+  if (delivery.pickup_status === 'picked_up' && newStatus === 'pending') {
+    try {
+      await ElMessageBox.confirm(
+        `确认将客户 "${delivery.order?.customer?.name || '未知'}" 的自提状态恢复为待自提？`,
+        '恢复状态'
+      )
+    } catch {
+      return
+    }
+  }
+
+  const result = await updatePickupStatus(deliveryId, newStatus)
+  if (result.success) {
+    ElMessage.success(newStatus === 'picked_up' ? '已确认自提' : '已恢复为待自提')
+    await refreshPickupList()
+  } else {
+    ElMessage.error(result.error || '操作失败')
+  }
+}
+
 // View pickup order details
 function viewPickupOrder(delivery: any) {
   if (delivery.order_id) {
@@ -2455,6 +2544,15 @@ function callCustomer(phone: string | undefined) {
 }
 .status-pill .el-icon {
   margin-left: 1px;
+}
+
+.status-pill--pending {
+  color: var(--status-pending);
+  background-color: var(--status-pending-bg);
+}
+.status-pill--picked_up {
+  color: var(--status-delivered);
+  background-color: var(--status-delivered-bg);
 }
 
 .status-pill--pending_pack,
@@ -3020,7 +3118,7 @@ function callCustomer(phone: string | undefined) {
   .express-mobile-card {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     padding: 14px 16px;
     margin-bottom: 10px;
     background: white;
@@ -3042,49 +3140,17 @@ function callCustomer(phone: string | undefined) {
     gap: 10px;
   }
 
-  .express-mobile-card .customer-name {
-    font-weight: 600;
-    font-size: 15px;
-    color: var(--earth-brown);
-  }
-
-  .express-mobile-card .card-info {
-    display: flex;
-    gap: 14px;
-    font-size: 13px;
-    color: var(--warm-gray);
-  }
-
-  .express-mobile-card .tracking-num {
-    color: var(--tomato-red);
-    font-family: 'SF Mono', 'Monaco', monospace;
-    font-weight: 500;
-  }
-
   .express-mobile-card .card-address {
     font-size: 13px;
     color: var(--warm-gray-light);
     line-height: 1.4;
   }
 
-  .express-mobile-card .card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: var(--warm-gray-light);
-  }
-
-  .express-mobile-card .card-actions {
-    display: flex;
-    gap: 8px;
-  }
-
   /* Mobile card styles - pickup */
   .pickup-mobile-card {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     padding: 14px 16px;
     margin-bottom: 10px;
     background: white;
@@ -3100,25 +3166,10 @@ function callCustomer(phone: string | undefined) {
     gap: 10px;
   }
 
-  .pickup-mobile-card .customer-name {
-    font-weight: 600;
-    font-size: 15px;
-    color: var(--earth-brown);
-  }
-
-  .pickup-mobile-card .card-info-row {
+  .pickup-mobile-card .card-footer {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    font-size: 13px;
-    color: var(--warm-gray);
-  }
-
-  .pickup-mobile-card .card-actions-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 4px;
   }
 
   /* Dialog responsive */
@@ -3160,23 +3211,35 @@ function callCustomer(phone: string | undefined) {
 }
 
 /* ========================================
-   PICKUP TAB - Special Styling
+   SHARED TABLE COLUMN STYLING
+   Used by both express & pickup desktop tables
    ======================================== */
 
-.pickup-customer {
+.col-customer {
   font-weight: 600;
   color: var(--earth-brown);
 }
 
-.pickup-quantity {
+.col-order-number {
+  font-size: 12px;
+  color: var(--warm-gray);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  letter-spacing: 0.02em;
+}
+
+.col-quantity {
   font-weight: 600;
   color: var(--tomato-red);
 }
 
-.pickup-time {
+.col-time {
   font-size: 13px;
   color: var(--warm-gray);
 }
+
+/* ========================================
+   PICKUP TAB - Specific Styling
+   ======================================== */
 
 .pickup-actions {
   display: flex;
@@ -3190,28 +3253,108 @@ function callCustomer(phone: string | undefined) {
   padding: 4px 8px;
 }
 
-/* Pickup mobile card enhancements */
-.quantity-badge {
-  background: linear-gradient(135deg, rgba(200, 75, 49, 0.1) 0%, rgba(200, 75, 49, 0.05) 100%);
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-weight: 600;
-  color: var(--tomato-red);
-}
-
-.time-text {
-  color: var(--warm-gray-light);
+/* Clickable count tags in pickup header */
+.pickup-count-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 4px;
   font-size: 12px;
+  line-height: 18px;
+  height: 22px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--status-pending);
+  background-color: var(--status-pending-bg);
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.pickup-count-tag--done {
+  color: var(--status-delivered);
+  background-color: var(--status-delivered-bg);
+}
+.pickup-count-tag.active {
+  border-color: currentColor;
+  font-weight: 600;
+}
+.pickup-count-tag:hover {
+  opacity: 0.8;
 }
 
-.card-actions-row {
+/* ========================================
+   SHARED MOBILE CARD STYLING
+   Used by both express & pickup mobile cards
+   ======================================== */
+
+.card-customer {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--earth-brown);
+}
+
+.card-key-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-order-number {
+  font-size: 12px;
+  color: var(--warm-gray);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  letter-spacing: 0.02em;
+}
+
+.card-quantity {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--tomato-red);
+  background: linear-gradient(135deg, rgba(200, 75, 49, 0.1) 0%, rgba(200, 75, 49, 0.05) 100%);
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+
+.card-detail {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--warm-gray);
+}
+
+.card-tracking-num {
+  color: var(--tomato-red);
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-weight: 500;
+}
+
+.card-tracking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-tracking-list .card-tracking-num {
+  word-break: break-all;
+}
+
+.card-time {
+  font-size: 12px;
+  color: var(--warm-gray-light);
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-actions {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 8px;
 }
 
-.card-actions-row .el-button {
+.card-actions .el-button {
   border-radius: 8px;
 }
 
