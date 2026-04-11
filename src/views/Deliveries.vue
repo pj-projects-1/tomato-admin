@@ -438,14 +438,41 @@
               </template>
             </el-table-column>
 
-            <el-table-column prop="express_status" label="状态" width="110">
+            <el-table-column prop="express_status" label="状态" min-width="130">
               <template #default="{ row }">
-                <el-tag
-                  size="small"
-                  :class="'status-tag--' + row.express_status"
-                >
-                  {{ getExpressStatusText(row.express_status) }}
-                </el-tag>
+                <el-dropdown trigger="click" @command="(cmd: string) => changeExpressStatus(row.id, cmd as ExpressStatus)">
+                  <span :class="'status-pill status-pill--' + row.express_status">
+                    {{ getExpressStatusText(row.express_status) }}
+                    <el-icon :size="12"><ArrowDown /></el-icon>
+                  </span>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <template v-for="status in EXPRESS_STATUS_FLOW" :key="status">
+                        <el-dropdown-item
+                          :command="status"
+                          :class="{ 'is-active': row.express_status === status }"
+                          :disabled="row.express_status === status"
+                        >
+                          <span v-if="row.express_status === status" style="font-weight: 600;">✓ </span>
+                          <span v-else style="margin-left: 14px;" />
+                          {{ getExpressStatusText(status) }}
+                        </el-dropdown-item>
+                      </template>
+                      <el-dropdown-item divided command="exception">
+                        <span style="color: var(--status-cancelled);">⚠ 标记异常</span>
+                      </el-dropdown-item>
+                      <template v-if="row.express_status === 'exception'">
+                        <el-dropdown-item
+                          v-for="status in EXPRESS_STATUS_FLOW"
+                          :key="'reset-' + status"
+                          :command="status"
+                        >
+                          恢复为{{ getExpressStatusText(status) }}
+                        </el-dropdown-item>
+                      </template>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </template>
             </el-table-column>
 
@@ -509,7 +536,7 @@
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="180">
+            <el-table-column label="操作" width="120">
               <template #default="{ row }">
                 <div class="express-actions">
                   <el-button
@@ -518,14 +545,6 @@
                     @click="openTrackingDialog(row)"
                   >
                     {{ getTrackingNumbers(row).length === 0 ? '输入运单号' : '编辑运单号' }}
-                  </el-button>
-                  <el-button
-                    v-if="getNextExpressStatus(row.express_status)"
-                    text
-                    type="success"
-                    @click="updateExpressDeliveryStatus(row.id, getNextExpressStatus(row.express_status)!)"
-                  >
-                    {{ row.express_status === 'pending_pack' ? '已包装' : row.express_status === 'pending_label' ? '已打印' : row.express_status === 'pending_dropoff' ? '已发货' : '更新状态' }}
                   </el-button>
                 </div>
               </template>
@@ -542,12 +561,39 @@
             >
               <div class="card-header-row">
                 <span class="customer-name">{{ row.order?.customer?.name || '-' }}</span>
-                <el-tag
-                  size="small"
-                  :class="'status-tag--' + row.express_status"
-                >
-                  {{ getExpressStatusText(row.express_status) }}
-                </el-tag>
+                <el-dropdown trigger="click" @command="(cmd: string) => changeExpressStatus(row.id, cmd as ExpressStatus)">
+                  <span :class="'status-pill status-pill--' + row.express_status">
+                    {{ getExpressStatusText(row.express_status) }}
+                    <el-icon :size="12"><ArrowDown /></el-icon>
+                  </span>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <template v-for="status in EXPRESS_STATUS_FLOW" :key="status">
+                        <el-dropdown-item
+                          :command="status"
+                          :class="{ 'is-active': row.express_status === status }"
+                          :disabled="row.express_status === status"
+                        >
+                          <span v-if="row.express_status === status" style="font-weight: 600;">✓ </span>
+                          <span v-else style="margin-left: 14px;" />
+                          {{ getExpressStatusText(status) }}
+                        </el-dropdown-item>
+                      </template>
+                      <el-dropdown-item divided command="exception">
+                        <span style="color: var(--status-cancelled);">⚠ 标记异常</span>
+                      </el-dropdown-item>
+                      <template v-if="row.express_status === 'exception'">
+                        <el-dropdown-item
+                          v-for="status in EXPRESS_STATUS_FLOW"
+                          :key="'reset-' + status"
+                          :command="status"
+                        >
+                          恢复为{{ getExpressStatusText(status) }}
+                        </el-dropdown-item>
+                      </template>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </div>
               <div class="card-info">
                 <span v-if="row.express_company">{{ getCompanyName(row.express_company) }}</span>
@@ -587,14 +633,6 @@
                     @click="openTrackingDialog(row)"
                   >
                     {{ getTrackingNumbers(row).length === 0 ? '输入运单号' : '编辑' }}
-                  </el-button>
-                  <el-button
-                    v-if="getNextExpressStatus(row.express_status)"
-                    size="small"
-                    type="success"
-                    @click="updateExpressDeliveryStatus(row.id, getNextExpressStatus(row.express_status)!)"
-                  >
-                    {{ row.express_status === 'pending_pack' ? '已包装' : row.express_status === 'pending_label' ? '已打印' : '已发货' }}
                   </el-button>
                 </div>
               </div>
@@ -1043,6 +1081,7 @@ import {
   getExpressBgColor,
   updateExpressStatus,
   getNextExpressStatus,
+  EXPRESS_STATUS_FLOW,
   getTrackingUrl,
   getTrackingNumbers,
   buildTrackingNumbersData,
@@ -1847,6 +1886,50 @@ async function refreshExpressList() {
   await loadExpressDeliveries()
 }
 
+async function changeExpressStatus(deliveryId: string, newStatus: ExpressStatus) {
+  // Find the current delivery to check status
+  const delivery = expressDeliveries.value.find((d: any) => d.id === deliveryId)
+  if (!delivery) return
+
+  const currentStatus = delivery.express_status as ExpressStatus
+  const nextStatus = getNextExpressStatus(currentStatus)
+
+  // Same status — do nothing
+  if (currentStatus === newStatus) return
+
+  // Advancing to next status — no confirmation needed
+  if (newStatus === nextStatus) {
+    await updateExpressDeliveryStatus(deliveryId, newStatus)
+    return
+  }
+
+  // Marking as exception
+  if (newStatus === 'exception') {
+    try {
+      await ElMessageBox.confirm(
+        `确定将状态标记为异常？`,
+        '标记异常',
+        { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+      )
+      await updateExpressDeliveryStatus(deliveryId, newStatus)
+    } catch { /* cancelled */ }
+    return
+  }
+
+  // Jumping to non-adjacent status or resetting from exception
+  try {
+    const isReset = currentStatus === 'exception'
+    await ElMessageBox.confirm(
+      isReset
+        ? `确定将状态从 异常 恢复为 ${getExpressStatusText(newStatus)}？`
+        : `确定将状态从 ${getExpressStatusText(currentStatus)} 改为 ${getExpressStatusText(newStatus)}？`,
+      isReset ? '恢复状态' : '修改状态',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    await updateExpressDeliveryStatus(deliveryId, newStatus)
+  } catch { /* cancelled */ }
+}
+
 async function updateExpressDeliveryStatus(deliveryId: string, newStatus: ExpressStatus) {
   try {
     const result = await updateExpressStatus(deliveryId, newStatus)
@@ -2352,6 +2435,52 @@ function callCustomer(phone: string | undefined) {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* Status pill — custom trigger for express status dropdown */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.status-pill:hover {
+  opacity: 0.8;
+}
+.status-pill .el-icon {
+  margin-left: 1px;
+}
+
+.status-pill--pending_pack,
+.status-pill--pending_label {
+  color: var(--status-pending);
+  background-color: var(--status-pending-bg);
+}
+.status-pill--pending_dropoff {
+  color: var(--status-confirmed);
+  background-color: var(--status-confirmed-bg);
+}
+.status-pill--in_transit {
+  color: var(--status-delivering);
+  background-color: var(--status-delivering-bg);
+}
+.status-pill--delivered {
+  color: var(--status-delivered);
+  background-color: var(--status-delivered-bg);
+}
+.status-pill--exception {
+  color: var(--status-cancelled);
+  background-color: var(--status-cancelled-bg);
+}
+
+:deep(.el-dropdown) {
+  display: inline-flex;
 }
 
 .express-actions .el-button {
